@@ -405,6 +405,8 @@ train_models <- function(run_info,
         .noexport = NULL
       ) %do% {
 
+       
+
         # get initial run info
         model <- model_run %>%
           dplyr::pull(Model_Name)
@@ -623,8 +625,31 @@ train_models <- function(run_info,
           Model_Fit = list(wflow_fit)
         )
 
+        # Assuming final_return_tbl has been defined as shown previously
+        try({
+            # Assuming 'as_modeltime_table' expects a list of model objects
+            modeltime_table <- as_modeltime_table(final_return_tbl$Model_Fit)
+            # Assuming you want to use modeltime_table for further operations
+        }, silent = FALSE)  # Set 'silent = TRUE' if you do not want the error message to print
+
+        # Check if the modeltime_table was successfully created
+        if (exists("modeltime_table")) {
+            print("MODELTIME TABLE:")
+            print(modeltime_table)
+        } else {
+            print("Modeltime Table Error: Creation failed.")
+        }
+
+        print("FINAL RETURN")
+        print(final_return_tbl)
         return(final_return_tbl)
       }
+
+
+      
+
+     
+        
 
       par_end(inner_cl)
 
@@ -632,11 +657,27 @@ train_models <- function(run_info,
       if (is.null(model_tbl)) {
         stop("All models failed to train")
       }
+      print("MODEL TBL")
+      print(model_tbl)
+
+    model_fits_list <- model_tbl$Model_Fit
+
+# Use as_modeltime_table to create a single modeltime table from all Model_Fit objects
+    try({
+        all_modeltime_table <- as_modeltime_table(model_fits_list)
+        print("Combined Modeltime Table:")
+        print(all_modeltime_table)
+    }, silent = TRUE)
+
+
+
 
       # write outputs
       fitted_models <- model_tbl %>%
         tidyr::unite(col = "Model_ID", c("Model_Name", "Model_Type", "Recipe_ID"), sep = "--", remove = FALSE) %>%
         dplyr::select(Combo_ID, Model_ID, Model_Name, Model_Type, Recipe_ID, Model_Fit)
+
+      
 
       write_data(
         x = fitted_models,
@@ -655,6 +696,8 @@ train_models <- function(run_info,
         dplyr::group_by(Combo_ID, Model_ID, Train_Test_ID) %>%
         dplyr::mutate(Horizon = dplyr::row_number()) %>%
         dplyr::ungroup()
+
+      
 
       if (unique(final_forecast_tbl$Combo_ID) == "All-Data") {
         for (combo_name in unique(final_forecast_tbl$Combo)) {

@@ -390,6 +390,7 @@ final_models <- function(run_info,
         dplyr::select(Combo, Model_ID, Train_Test_ID, Date, Forecast, Target) %>%
         rbind(averages_tbl)
 
+      
       back_test_mape <- final_predictions_tbl %>%
         dplyr::mutate(
           Train_Test_ID = as.numeric(Train_Test_ID),
@@ -621,6 +622,8 @@ final_models <- function(run_info,
   )
 }
 
+
+
 #' Create prediction intervals
 #'
 #' @param fcst_tbl forecast table to use to create prediction intervals
@@ -630,6 +633,8 @@ final_models <- function(run_info,
 #' @noRd
 create_prediction_intervals <- function(fcst_tbl,
                                         train_test_split) {
+
+
   back_test_id <- train_test_split %>%
     dplyr::filter(Run_Type == "Back_Test") %>%
     dplyr::select(Train_Test_ID) %>%
