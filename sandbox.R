@@ -46,4 +46,12 @@ final_models(run_info)
 
 models_tbl <- get_trained_models(run_info)
 
+models_tbl <- models_tbl %>%
+  mutate(Modeltime_Table = purrr::map(Model_Fit, ~ as_modeltime_table(list(.x))))
+
 models_tbl
+library(modeltime)
+
+models_tbl$Modeltime_Table[[2]]
+
+#make additional col for model_tbl that uses as_modeltime_table

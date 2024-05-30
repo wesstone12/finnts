@@ -103,6 +103,13 @@ final_models <- function(run_info,
     return_type = "df"
   )
 
+
+  trained_mdls <- get_trained_models(run_info) %>%
+  mutate(Modeltime_Table = purrr::map(Model_Fit, ~ as_modeltime_table(list(.x))))
+
+  print("Trained Models")
+  print(trained_mdls)
+
   # check if a previous run already has necessary outputs
   prev_combo_list <- list_files(
     run_info$storage_object,
@@ -288,6 +295,9 @@ final_models <- function(run_info,
       } else {
         best_model_check <- FALSE
       }
+
+
+
 
       # combine all forecasts
       predictions_tbl <- local_model_tbl %>%

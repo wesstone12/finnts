@@ -632,43 +632,38 @@ train_models <- function(run_info,
       if (is.null(model_tbl)) {
         stop("All models failed to train")
       }
-    #   # Extract the list of Model_Fit from the model_tbl
-    #   model_fits_list <- model_tbl$Model_Fit
+  
+    # # Initialize an empty data frame to store the results
+    # modeltime_table_df <- tibble::tibble(Combo_ID = character(), 
+    # Model_ID = character(), Model_Name = character(), Model_Type = character(),
+    # Recipe_ID = character(),Modeltime_Table = list())
 
-    #   # Use as_modeltime_table to create a single modeltime table from all Model_Fit objects
-    #   try({
-    #       all_modeltime_table <- as_modeltime_table(model_fits_list)
+    # # Loop over each model fit along with its Combo_ID, Model_ID, and Model_Name
+    # for (i in seq_along(model_tbl$Model_Fit)) {
+    #   model_fit <- model_tbl$Model_Fit[[i]]
+    #   combo_id <- model_tbl$Combo_ID[i]
+    #   model_id <- model_tbl$Model_ID[i]
+    #   model_name <- model_tbl$Model_Name[i]
+    #   model_type <- model_tbl$Model_Type[i]
+    #   recipe_id <- model_tbl$Recipe_ID[i]
 
-    #       modeltime_table <- tibble::tibble(
-    #       Combo_ID = combo_id,
-    #       Modeltime_Table = list(all_modeltime_table)
-          
-    # )
-    #         #print
-    #     print("Modeltime Table:")
-    #     print(modeltime_table)
 
-    #   }, silent = TRUE)  # Change to FALSE to see errors
+    #   # Apply the as_modeltime_table function to the current model fit
+    #   single_modeltime_table <- as_modeltime_table(list(model_fit))
+      
+    #   # Append the result to the data frame
+    #   modeltime_table_df <- dplyr::bind_rows(modeltime_table_df, 
+    #       tibble::tibble(Combo_ID = combo_id, Model_ID = model_id, Model_Name = model_name, 
+    #       Model_Type = model_type, Recipe_ID = recipe_id, Modeltime_Table = list(single_modeltime_table)))
+    # }
 
-    # Initialize an empty data frame to store the results
-      modeltime_table_df <- tibble::tibble(Combo_ID = character(), Model_Name = character(), Modeltime_Table = list())
+    # # If you want to unite certain columns after the loop
+    # modeltime_table_df <- modeltime_table_df %>%
+    #   tidyr::unite(col = "Model_ID", c("Model_Name", "Model_Type", "Recipe_ID"), sep = "--", remove = FALSE)
 
-      # Loop over each model fit along with its Combo_ID
-      for (i in seq_along(model_tbl$Model_Fit)) {
-        model_fit <- model_tbl$Model_Fit[[i]]
-        combo_id <- model_tbl$Combo_ID[i]
-        model_name <- model_tbl$Model_Name[i]
-
-        # Apply the as_modeltime_table function to the current model fit
-        single_modeltime_table <- as_modeltime_table(list(model_fit))
-        
-        # Append the result to the data frame
-        modeltime_table_df <- dplyr::bind_rows(modeltime_table_df, tibble::tibble(Combo_ID = combo_id, Model_Name = model_name, Modeltime_Table = list(single_modeltime_table)))
-      }
-
-      # Print the modeltime table with each row containing a Combo_ID and a corresponding modeltime_table object
-      print("Modeltime Table with Combo_IDs:")
-      print(modeltime_table_df)
+    #   # Print the modeltime table with each row containing a Combo_ID and a corresponding modeltime_table object
+    #   print("Modeltime Table with Combo_IDs:")
+    #   print(modeltime_table_df)
 
 
     
@@ -676,6 +671,9 @@ train_models <- function(run_info,
       fitted_models <- model_tbl %>%
         tidyr::unite(col = "Model_ID", c("Model_Name", "Model_Type", "Recipe_ID"), sep = "--", remove = FALSE) %>%
         dplyr::select(Combo_ID, Model_ID, Model_Name, Model_Type, Recipe_ID, Model_Fit)
+
+      # print("Fitted Models:")
+      # print(fitted_models)
 
       write_data(
         x = fitted_models,
