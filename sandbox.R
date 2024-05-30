@@ -46,3 +46,4 @@ final_models(run_info)
 
 models_tbl <- get_trained_models(run_info)
 
+models_tbl
