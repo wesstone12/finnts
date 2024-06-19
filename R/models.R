@@ -833,9 +833,14 @@ meanf <- function(train_data,
     model_spec_meanf,
     recipe_spec_meanf
   )
+  print("MEANF MODEL")
+  print(wflw_spec_meanf)
+
 
   return(wflw_spec_meanf)
 }
+
+
 
 #' nnetar model
 #'

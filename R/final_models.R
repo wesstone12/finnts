@@ -638,31 +638,43 @@ final_models <- function(run_info,
 #'
 #' @return data frame with prediction intervals
 #' @noRd
-create_prediction_intervals <- function(fcst_tbl,
-                                        train_test_split) {
-  back_test_id <- train_test_split %>%
+create_prediction_intervals <- function(fcst_tbl, train_test_split) {
+  conf_level <- 0.95
+  split_ratio <- 0.5
+  # Identify the back test IDs
+  back_test_ids <- train_test_split %>%
     dplyr::filter(Run_Type == "Back_Test") %>%
-    dplyr::select(Train_Test_ID) %>%
     dplyr::pull(Train_Test_ID)
 
-  prediction_interval_tbl <- fcst_tbl %>%
-    dplyr::filter(Train_Test_ID %in% back_test_id) %>%
-    dplyr::mutate(Residual = Target - Forecast) %>%
-    dplyr::group_by(Combo, Model_ID) %>%
-    dplyr::summarise(Residual_Std_Dev = sd(Residual, na.rm = TRUE)) %>%
-    dplyr::ungroup()
+  # Ensure the data is ordered by time (adjust `Time_Column` to your actual time column name)
+  fcst_tbl <- fcst_tbl %>%
+    dplyr::filter(Train_Test_ID %in% back_test_ids) %>%
+    dplyr::arrange(Time_Column)
 
-  final_tbl <- fcst_tbl %>%
-    dplyr::left_join(prediction_interval_tbl,
-      by = c("Model_ID", "Combo")
-    ) %>%
+  # Calculate the split index based on the provided ratio
+  n <- nrow(fcst_tbl)
+  split_index <- ceiling(n * split_ratio)
+
+  # Divide the forecast table into calibration and test sets based on the temporal index
+  calibration_set <- fcst_tbl[1:split_index, ]
+  test_set <- fcst_tbl[(split_index + 1):n, ]
+
+  # Calculate residuals and quantile within each group
+  calibration_set <- calibration_set %>%
+    dplyr::mutate(Residual = abs(Target - Forecast)) %>%
+    dplyr::group_by(Combo, Model_ID) %>%
+    dplyr::arrange(Residual) %>%
+    dplyr::summarise(q_val = stats::quantile(Residual, probs = conf_level), .groups = "drop")
+
+  # Apply the conformal prediction interval to the test data grouped by Combo and Model_ID
+  final_tbl <- test_set %>%
+    dplyr::left_join(calibration_set, by = c("Combo", "Model_ID")) %>%
     dplyr::mutate(
-      lo_80 = ifelse(Train_Test_ID == 1, Forecast - (1.28 * Residual_Std_Dev), NA),
-      lo_95 = ifelse(Train_Test_ID == 1, Forecast - (1.96 * Residual_Std_Dev), NA),
-      hi_80 = ifelse(Train_Test_ID == 1, Forecast + (1.28 * Residual_Std_Dev), NA),
-      hi_95 = ifelse(Train_Test_ID == 1, Forecast + (1.96 * Residual_Std_Dev), NA)
+      .conf_lo = Forecast - q_val,
+      .conf_hi = Forecast + q_val
     ) %>%
-    dplyr::select(-Residual_Std_Dev)
+    dplyr::select(Combo, Model_ID, Forecast, .conf_lo, .conf_hi) %>%
+    dplyr::arrange(Combo, Model_ID)
 
   return(final_tbl)
 }
