@@ -647,12 +647,46 @@ create_prediction_intervals <- function(fcst_tbl,
       by = c("Model_ID", "Combo")
     ) %>%
     dplyr::mutate(
-      lo_80 = ifelse(Train_Test_ID == 1, Forecast - (1.28 * Residual_Std_Dev), NA),
-      lo_95 = ifelse(Train_Test_ID == 1, Forecast - (1.96 * Residual_Std_Dev), NA),
-      hi_80 = ifelse(Train_Test_ID == 1, Forecast + (1.28 * Residual_Std_Dev), NA),
-      hi_95 = ifelse(Train_Test_ID == 1, Forecast + (1.96 * Residual_Std_Dev), NA)
+      lo_80 =  Forecast - (1.28 * Residual_Std_Dev), 
+      lo_95 =  Forecast - (1.96 * Residual_Std_Dev), 
+      hi_80 =  Forecast + (1.28 * Residual_Std_Dev), 
+      hi_95 =  Forecast + (1.96 * Residual_Std_Dev),
     ) %>%
     dplyr::select(-Residual_Std_Dev)
+
+
+
+# Calculate coverage for the 80% interval
+coverage_80 <-  final_tbl %>%
+  #Filter for only back test data'
+  dplyr::filter(Train_Test_ID %in% back_test_id) %>%
+  dplyr::summarise(
+    coverage_80 = mean(Target >= lo_80 & Target <= hi_80)
+  )
+
+# Calculate coverage for the 95% interval
+coverage_95 <-  final_tbl %>%
+  dplyr::filter(Train_Test_ID %in% back_test_id) %>%
+  dplyr::summarise(
+    coverage_95 = mean(Target >= lo_95 & Target <= hi_95)
+  )
+ 
+# Print or view coverage results
+print(sprintf("%.2f", coverage_80))
+print(sprintf("%.2f", coverage_95))
+
+#make a plot 
+p <- ggplot2::ggplot(final_tbl, ggplot2::aes(x = Date)) +
+        ggplot2::geom_line(ggplot2::aes(y = Target, color = "Target"), na.rm = TRUE) +
+        ggplot2::geom_line(ggplot2::aes(y = Forecast, color = "Forecast"), na.rm = TRUE) +
+        ggplot2::geom_ribbon(ggplot2::aes(ymin = lo_80, ymax = hi_80), fill = "blue", alpha = 0.2) +
+        ggplot2::geom_ribbon(ggplot2::aes(ymin = lo_95, ymax = hi_95), fill = "red", alpha = 0.2) +
+        ggplot2::labs(title = "Forecast with Prediction Intervals",
+             y = "Values",
+             color = "Legend") +
+        ggplot2::theme_minimal()
+
+    print(p)
 
   return(final_tbl)
 }
