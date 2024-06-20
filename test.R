@@ -25,7 +25,7 @@ prep_data(run_info,
 )
 
 prep_models(run_info,
-  models_to_run = c("meanf"),
+  models_to_run = c("arima"),
   num_hyperparameters = 1
 )
 
