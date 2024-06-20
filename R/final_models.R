@@ -628,35 +628,62 @@ final_models <- function(run_info,
 #'
 #' @return data frame with prediction intervals
 #' @noRd
-create_prediction_intervals <- function(fcst_tbl,
-                                        train_test_split) {
-  back_test_id <- train_test_split %>%
-    dplyr::filter(Run_Type == "Back_Test") %>%
-    dplyr::select(Train_Test_ID) %>%
-    dplyr::pull(Train_Test_ID)
+create_prediction_intervals <- function(fcst_tbl, train_test_split, conf_levels = c(0.80, 0.95), split_ratio = 0.5) {
+    # Extract the Train_Test_IDs for the Back_Test run type
+    back_test_ids <- train_test_split %>%
+        dplyr::filter(Run_Type == "Back_Test") %>%
+        dplyr::pull(Train_Test_ID)
 
-  prediction_interval_tbl <- fcst_tbl %>%
-    dplyr::filter(Train_Test_ID %in% back_test_id) %>%
-    dplyr::mutate(Residual = Target - Forecast) %>%
-    dplyr::group_by(Combo, Model_ID) %>%
-    dplyr::summarise(Residual_Std_Dev = sd(Residual, na.rm = TRUE)) %>%
-    dplyr::ungroup()
+    # Order by the 'Date' column and include only back_test_ids for calibration and testing
+    fcst_tbl_ordered <- fcst_tbl %>%
+        dplyr::filter(Train_Test_ID %in% back_test_ids) %>%
+        dplyr::arrange(Date)
 
-  final_tbl <- fcst_tbl %>%
-    dplyr::left_join(prediction_interval_tbl,
-      by = c("Model_ID", "Combo")
-    ) %>%
-    dplyr::mutate(
-      lo_80 = ifelse(Train_Test_ID == 1, Forecast - (1.28 * Residual_Std_Dev), NA),
-      lo_95 = ifelse(Train_Test_ID == 1, Forecast - (1.96 * Residual_Std_Dev), NA),
-      hi_80 = ifelse(Train_Test_ID == 1, Forecast + (1.28 * Residual_Std_Dev), NA),
-      hi_95 = ifelse(Train_Test_ID == 1, Forecast + (1.96 * Residual_Std_Dev), NA)
-    ) %>%
-    dplyr::select(-Residual_Std_Dev)
+    # Calculate the index for splitting data into calibration and test sets
+    n <- nrow(fcst_tbl_ordered)
+    split_index <- ceiling(split_ratio * n)
 
-  return(final_tbl)
+    # Split data into calibration and test sets
+    calibration_set <- fcst_tbl_ordered[1:split_index, ]
+    test_set <- fcst_tbl_ordered[(split_index + 1):n, ]
+
+    # Compute residuals and quantile values in the calibration set
+    quantiles <- calibration_set %>%
+        dplyr::mutate(Residual = abs(Target - Forecast)) %>%
+        dplyr::summarise(
+            q_val_80 = quantile(Residual, probs = conf_levels[1], na.rm = TRUE),
+            q_val_95 = quantile(Residual, probs = conf_levels[2], na.rm = TRUE)
+        )
+
+    # Broadcast quantile values for joining
+    test_set <- test_set %>%
+        dplyr::mutate(
+            q_val_80 = quantiles$q_val_80,
+            q_val_95 = quantiles$q_val_95
+        )
+    
+    q_val_80 <- quantiles$q_val_80
+    q_val_95 <- quantiles$q_val_95
+    print(q_val_80)
+    print(q_val_95)
+
+    # Conditionally apply quantiles based on Train_Test_ID == 1
+    test_set <- fcst_tbl %>%
+        dplyr::mutate(
+            lo_80 = ifelse(Train_Test_ID == 1, Forecast - q_val_80, NA),
+            hi_80 = ifelse(Train_Test_ID == 1, Forecast + q_val_80, NA),
+            lo_95 = ifelse(Train_Test_ID == 1, Forecast - q_val_95, NA),
+            hi_95 = ifelse(Train_Test_ID == 1, Forecast + q_val_95, NA)
+        )
+    
+    # View(test_set)
+    # # Merge these prediction intervals back to the original dataset, ensuring all rows are kept
+    # final_tbl <- fcst_tbl_ordered %>%
+    #     dplyr::left_join(test_set %>% dplyr::select(Combo, Model_ID, Date, Train_Test_ID, lo_80, hi_80, lo_95, hi_95),
+    #                      by = c("Combo", "Model_ID", "Date", "Train_Test_ID"))
+
+    return(test_set)
 }
-
 #' Convert weekly forecast down to daily
 #'
 #' @param fcst_tbl forecast table to use to create prediction intervals
