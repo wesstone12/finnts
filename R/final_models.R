@@ -654,7 +654,7 @@ create_prediction_intervals <- function(fcst_tbl, train_test_split, conf_levels 
             q_val_80 = quantile(Residual, probs = conf_levels[1], na.rm = TRUE),
             q_val_95 = quantile(Residual, probs = conf_levels[2], na.rm = TRUE)
         )
-
+  print(quantiles)
     # Broadcast quantile values for joining
     test_set <- test_set %>%
         dplyr::mutate(
@@ -668,21 +668,60 @@ create_prediction_intervals <- function(fcst_tbl, train_test_split, conf_levels 
     print(q_val_95)
 
     # Conditionally apply quantiles based on Train_Test_ID == 1
-    test_set <- fcst_tbl %>%
+    fcst_tbl <- fcst_tbl %>%
         dplyr::mutate(
-            lo_80 = ifelse(Train_Test_ID == 1, Forecast - q_val_80, NA),
-            hi_80 = ifelse(Train_Test_ID == 1, Forecast + q_val_80, NA),
-            lo_95 = ifelse(Train_Test_ID == 1, Forecast - q_val_95, NA),
-            hi_95 = ifelse(Train_Test_ID == 1, Forecast + q_val_95, NA)
+            lo_80 = Forecast - q_val_80, NA,
+            hi_80 = Forecast + q_val_80, NA,
+            lo_95 = Forecast - q_val_95, NA,
+            hi_95 = Forecast + q_val_95, NA
         )
+
+    #Calculate coverage
+    test_set <- test_set %>%
+  dplyr::mutate(
+    lo_80 = Forecast - q_val_80,
+    hi_80 = Forecast + q_val_80,
+    lo_95 = Forecast - q_val_95,
+    hi_95 = Forecast + q_val_95
+  )
+
+# Calculate coverage for the 80% interval
+coverage_80 <- test_set %>%
+  dplyr::summarise(
+    coverage_80 = mean(Target >= lo_80 & Target <= hi_80)
+  )
+
+# Calculate coverage for the 95% interval
+coverage_95 <- test_set %>%
+  dplyr::summarise(
+    coverage_95 = mean(Target >= lo_95 & Target <= hi_95)
+  )
+ 
+# Print or view coverage results
+print(sprintf("%.2f", coverage_80))
+print(sprintf("%.2f", coverage_95))
+
+#make a plot 
+p <- ggplot2::ggplot(fcst_tbl, ggplot2::aes(x = Date)) +
+        ggplot2::geom_line(ggplot2::aes(y = Target, color = "Target"), na.rm = TRUE) +
+        ggplot2::geom_line(ggplot2::aes(y = Forecast, color = "Forecast"), na.rm = TRUE) +
+        ggplot2::geom_ribbon(ggplot2::aes(ymin = lo_80, ymax = hi_80), fill = "blue", alpha = 0.2) +
+        ggplot2::geom_ribbon(ggplot2::aes(ymin = lo_95, ymax = hi_95), fill = "red", alpha = 0.2) +
+        ggplot2::labs(title = "Forecast with Prediction Intervals",
+             y = "Values",
+             color = "Legend") +
+        ggplot2::theme_minimal()
+
+    print(p)
+
     
-    # View(test_set)
+    # View(fcst_tbl)
     # # Merge these prediction intervals back to the original dataset, ensuring all rows are kept
     # final_tbl <- fcst_tbl_ordered %>%
-    #     dplyr::left_join(test_set %>% dplyr::select(Combo, Model_ID, Date, Train_Test_ID, lo_80, hi_80, lo_95, hi_95),
+    #     dplyr::left_join(fcst_tbl %>% dplyr::select(Combo, Model_ID, Date, Train_Test_ID, lo_80, hi_80, lo_95, hi_95),
     #                      by = c("Combo", "Model_ID", "Date", "Train_Test_ID"))
 
-    return(test_set)
+    return(fcst_tbl)
 }
 #' Convert weekly forecast down to daily
 #'
