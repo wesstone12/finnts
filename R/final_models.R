@@ -899,9 +899,15 @@ create_prediction_intervals <- function(fcst_tbl, train_test_split, conf_levels 
       calibration_set <- combo_model_data[1:split_index, ]
       test_set <- combo_model_data[(split_index + 1):n, ]
 
+      cat("Number of rows in calibration set: ", nrow(calibration_set), "\n")
+      cat("Number of rows in test set: ", nrow(test_set), "\n")
+
       # Conformal Prediction
-      residuals <- abs(calibration_set$Target - calibration_set$Forecast)
-      q_vals <- sapply(conf_levels, function(cl) quantile(residuals, probs = cl, na.rm = TRUE))
+      residuals <- calibration_set$Target - calibration_set$Forecast
+      q_vals <- sapply(conf_levels, function(cl) {
+        alpha <- 1 - cl
+        quantile(abs(residuals), probs = 1- alpha, na.rm = TRUE)
+      })
       #print(q_vals)
       cat("Q_vals for Model_ID: ", model_id, " and Combo: ", combo, "\n")
       cat("q_val_80: ", q_vals[1], "\n")

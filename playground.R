@@ -19,8 +19,8 @@
     dplyr::rename(Date = date) %>%
     dplyr::mutate(id = as.character(id)) %>%
     dplyr::filter(
-      id == c("M1", "M2", "M750" ,"M1000"),
-    Date >= "2010-12-01",
+      id == c("M750" ),
+    Date >= "2000-12-01",
       Date <= "2015-06-01")
 
 
