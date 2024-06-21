@@ -628,13 +628,15 @@ final_models <- function(run_info,
 #'
 #' @return data frame with prediction intervals
 #' @noRd
-create_prediction_intervals <- function(fcst_tbl, train_test_split, conf_levels = c(0.80, 0.95), split_ratio = 0.6) {
+create_prediction_intervals <- function(fcst_tbl, train_test_split, conf_levels = c(0.80, 0.95), split_ratio = 0.7) {
+  # Do a 60/40 split for calibration and test sets for now. May be worth more calibration data in the future
+
     # Extract the Train_Test_IDs for the Back_Test run type
     back_test_ids <- train_test_split %>%
     dplyr::filter(Run_Type == "Back_Test") %>%
     dplyr::pull(Train_Test_ID)
 
-  # Filter and order forecast table by Date
+  # Filter and order forecast table by Date... probably not necessary lol
   fcst_tbl_filtered <- fcst_tbl %>%
     dplyr::filter(Train_Test_ID %in% back_test_ids) %>%
     dplyr::arrange(Date)
@@ -659,6 +661,7 @@ cat("\n=====================CONFORMAL TESTING=====================\n")
       # Compute residuals and quantile values in the calibration set
       residuals <- abs(calibration_set$Target - calibration_set$Forecast)
       q_val_80 <- quantile(residuals, probs = conf_levels[1], na.rm = TRUE)
+      cat("Q_vals for Model_ID: ", model_id, " and Combo: ", combo, "\n")
       cat("q_val_80: ", q_val_80, "\n")
       q_val_95 <- quantile(residuals, probs = conf_levels[2], na.rm = TRUE)
       cat("q_val_95: ", q_val_95, "\n")
@@ -684,6 +687,24 @@ cat("\n=====================CONFORMAL TESTING=====================\n")
         coverage_95 = mean(test_set$covered_95, na.rm = TRUE)
       )
     }
+
+
+    # p <- ggplot2::ggplot(test_set, ggplot2::aes(x = Date, y = Target)) +
+    #   ggplot2::geom_line(color = "blue", size = 1) +
+    #   ggplot2::geom_line(ggplot2::aes(y = Forecast), color = "red", linetype = "dashed") +
+    #   ggplot2::geom_ribbon(ggplot2::aes(ymin = lo_80, ymax = hi_80), fill = "orange", alpha = 0.4, inherit.aes = FALSE) +
+    #   ggplot2::geom_ribbon(ggplot2::aes(ymin = lo_95, ymax = hi_95), fill = "yellow", alpha = 0.2, inherit.aes = FALSE) +
+    #   ggplot2::labs(title = paste("Prediction Intervals for Model ID:", model_id, "Combo:", combo),
+    #        subtitle = paste("Coverage 80%:", format(coverage_results[[key]]$coverage_80 * 100, nsmall = 2),
+    #                         "%, 95%:", format(coverage_results[[key]]$coverage_95 * 100, nsmall = 2), "%"),
+    #        x = "Date", y = "Values") +
+    #   ggplot2::theme_minimal()
+
+    # # Print or save the plot
+    # print(p) 
+    
+
+
   }
 
   # Apply quantiles and coverages to calculate prediction intervals
@@ -713,22 +734,6 @@ cat("\n=====================CONFORMAL TESTING=====================\n")
     cat("=====================================\n")
   }
 
-
-#make a plot 
-p <- ggplot2::ggplot(fcst_tbl, ggplot2::aes(x = Date)) +
-        ggplot2::geom_line(ggplot2::aes(y = Target, color = "Target"), na.rm = TRUE) +
-        ggplot2::geom_line(ggplot2::aes(y = Forecast, color = "Forecast"), na.rm = TRUE) +
-        ggplot2::geom_ribbon(ggplot2::aes(ymin = lo_80, ymax = hi_80), fill = "blue", alpha = 0.2) +
-        ggplot2::geom_ribbon(ggplot2::aes(ymin = lo_95, ymax = hi_95), fill = "red", alpha = 0.2) +
-        ggplot2::labs(title = "Forecast with Prediction Intervals",
-             y = "Values",
-             color = "Legend") +
-        ggplot2::theme_minimal()
-
-    print(p)
-
-
-
 # Z SCORE TESTING=====================
   # Calculate the split index
 
@@ -755,8 +760,8 @@ cat("\n=====================Z SCORE TESTING=====================\n")
     # cat("Unique Train_Test_IDs in combo_model_data: ", unique(combo_model_data$Train_Test_ID), "\n")
     # cat("Back test IDs: ", back_test_ids, "\n")
 
-      # Filter step
-      prediction_interval_tbl <- combo_model_data %>%
+      # Filter step... we will use a "calibration" set... previously all test data was used, but this led to overfitting in testing..
+      prediction_interval_tbl <- calibration_set %>%
           dplyr::filter(Train_Test_ID %in% back_test_ids) %>%
           dplyr::mutate(Residual = Target - Forecast) %>%
           dplyr::group_by(Combo, Model_ID) %>%
@@ -783,7 +788,10 @@ cat("\n=====================Z SCORE TESTING=====================\n")
         ) %>%
         dplyr::select(-Residual_Std_Dev)
         # print(fcst_tbl_z_score)
-
+        cat("Z Score CI estimator for ",paste(combo, model_id, sep = "_"), "\n")
+        cat("80: ", (1.28 * prediction_interval_tbl$Residual_Std_Dev), "\n")
+        cat("95: ", (1.96 * prediction_interval_tbl$Residual_Std_Dev), "\n")
+        cat("\n")
         #fcst_tbl_z_score filtered by what is in test_set 
         
 
@@ -795,7 +803,7 @@ cat("\n=====================Z SCORE TESTING=====================\n")
       # cat(sprintf("Combo: %s, Model ID: %s\n", combo, model_id))
       #combime the combo and model id, having it be combo_model_id
       cat("-------------------------------------\n")
-      cat("Coverage for ",paste(combo, model_id, sep = "_"))
+      cat("Coverage for ",paste(combo, model_id, sep = "_"), "\n")
 
       cat("-------------------------------------\n")
       cat(sprintf("Coverage for 80%% interval: %.2f%%\n", coverage_80_z * 100))
@@ -804,7 +812,7 @@ cat("\n=====================Z SCORE TESTING=====================\n")
       
     }
   }
-  print("=========================================================")
+  cat("_________________________________________________")
 
 
 # END Z SCORE TESTING=====================
