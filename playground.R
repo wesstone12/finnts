@@ -4,14 +4,24 @@ library(devtools)
 load_all()
 
 # \donttest{
+# data_tbl <- timetk::m4_monthly %>%
+#   dplyr::rename(Date = date) %>%
+#   dplyr::mutate(id = as.character(id)) %>%
+#   dplyr::filter(
+#     id == "M2",
+#     Date >= "2012-01-01",
+#     Date <= "2015-06-01"
+#   )a
+
 data_tbl <- timetk::m4_monthly %>%
   dplyr::rename(Date = date) %>%
   dplyr::mutate(id = as.character(id)) %>%
   dplyr::filter(
-    id == "M2",
-    Date >= "2012-01-01",
-    Date <= "2015-06-01"
-  )
+    id == "M1",
+  Date >= "2010-01-01",
+    Date <= "2015-06-01")
+
+
 
 run_info <- set_run_info()
 
@@ -25,7 +35,7 @@ prep_data(run_info,
 )
 
 prep_models(run_info,
-  models_to_run = c("arima"),
+  models_to_run = c("arima", "meanf", "ets"),
   num_hyperparameters = 1
 )
 
@@ -43,5 +53,5 @@ final_models(run_info,
 fcst_tbl <- get_forecast_data(run_info)
 # }
 
-View(fcst_tbl)
-print(fcst_tbl)
+# View(fcst_tbl)
+# print(fcst_tbl)
