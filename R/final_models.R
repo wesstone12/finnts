@@ -628,24 +628,265 @@ final_models <- function(run_info,
 #'
 #' @return data frame with prediction intervals
 #' @noRd
-create_prediction_intervals <- function(fcst_tbl, train_test_split, conf_levels = c(0.80, 0.95), split_ratio = 0.7) {
-  # Do a 60/40 split for calibration and test sets for now. May be worth more calibration data in the future
+# create_prediction_intervals <- function(fcst_tbl, train_test_split, conf_levels = c(0.80, 0.95), split_ratio = 0.8) {
+#   # Do a 60/40 split for calibration and test sets for now. May be worth more calibration data in the future
 
-    # Extract the Train_Test_IDs for the Back_Test run type
-    back_test_ids <- train_test_split %>%
+#     # Extract the Train_Test_IDs for the Back_Test run type
+#     back_test_ids <- train_test_split %>%
+#     dplyr::filter(Run_Type == "Back_Test") %>%
+#     dplyr::pull(Train_Test_ID)
+
+#   # Filter and order forecast table by Date... probably not necessary lol
+#   fcst_tbl_filtered <- fcst_tbl %>%
+#     dplyr::filter(Train_Test_ID %in% back_test_ids) %>%
+#     dplyr::arrange(Date)
+
+#   # Initialize lists to store quantile values and coverage results
+#   quantiles_list <- list()
+#   coverage_results <- list()
+# cat("\n=====================CONFORMAL TESTING=====================\n")
+#   # Loop over each combination of Combo and Model_ID
+#   for (combo in unique(fcst_tbl_filtered$Combo)) {
+#     for (model_id in unique(fcst_tbl_filtered$Model_ID[fcst_tbl_filtered$Combo == combo])) {
+#       # Filter data for the current combo and model_id
+#       combo_model_data <- fcst_tbl_filtered %>%
+#         dplyr::filter(Combo == combo, Model_ID == model_id)
+
+#       # Calculate split index and separate data
+#       n <- nrow(combo_model_data)
+#       split_index <- ceiling(split_ratio * n)
+#       print(split_index)
+#       calibration_set <- combo_model_data[1:split_index, ]
+#       cat("row count of calibration_set: ", nrow(calibration_set), "\n")
+#       test_set <- combo_model_data[(split_index + 1):n, ]
+#       cat("row count of test_set: ", nrow(test_set), "\n")
+
+#       # Compute residuals and quantile values in the calibration set
+#       residuals <- abs(calibration_set$Target - calibration_set$Forecast)
+#       q_val_80 <- quantile(residuals, probs = conf_levels[1], na.rm = TRUE)
+#       cat("Q_vals for Model_ID: ", model_id, " and Combo: ", combo, "\n")
+#       cat("q_val_80: ", q_val_80, "\n")
+#       q_val_95 <- quantile(residuals, probs = conf_levels[2], na.rm = TRUE)
+#       cat("q_val_95: ", q_val_95, "\n")
+
+#       # Store quantiles in the list using a unique key for each combo and model_id
+#       key <- paste(combo, model_id, sep = "_")
+#       quantiles_list[[key]] <- c(q_val_80, q_val_95)
+#       cat("Quantiles for key: ", key, " are: ", quantiles_list[[key]], "\n")
+
+#       # Calculate coverage
+#       test_set <- test_set %>%
+#         dplyr::mutate(
+#           lo_80 = Forecast - q_val_80,
+#           hi_80 = Forecast + q_val_80,
+#           lo_95 = Forecast - q_val_95,
+#           hi_95 = Forecast + q_val_95,
+#           covered_80 = Target >= lo_80 & Target <= hi_80,
+#           covered_95 = Target >= lo_95 & Target <= hi_95
+#         )
+
+#       # Store coverage rates
+#       coverage_results[[key]] <- list(
+#         coverage_80 = mean(test_set$covered_80, na.rm = TRUE),
+#         coverage_95 = mean(test_set$covered_95, na.rm = TRUE)
+
+#         )
+
+#         # Create a ggplot for each Combo and Model_ID pair
+#       p <- ggplot2::ggplot(test_set, ggplot2::aes(x = Date)) +
+#         ggplot2::geom_line(ggplot2::aes(y = Target, color = "Actual"), size = 1) +
+#         ggplot2::geom_line(ggplot2::aes(y = Forecast, color = "Forecast"), linetype = "dashed") +
+#         ggplot2::geom_ribbon(ggplot2::aes(ymin = lo_80, ymax = hi_80, fill = "80% Interval"), alpha = 0.4) +
+#         ggplot2::geom_ribbon(ggplot2::aes(ymin = lo_95, ymax = hi_95, fill = "95% Interval"), alpha = 0.2) +
+#         ggplot2::scale_color_manual(values = c("Actual" = "blue", "Forecast" = "red")) +
+#         ggplot2::scale_fill_manual(values = c("80% Interval" = "orange", "95% Interval" = "#ffbb00")) +
+#         ggplot2::labs(title = paste("Prediction Intervals for Model ID:", model_id, " and Combo:", combo),
+#             subtitle = paste("Coverage 80%:", format(mean(test_set$covered_80, na.rm = TRUE) * 100, nsmall = 2),
+#                               "%, 95%:", format(mean(test_set$covered_95, na.rm = TRUE) * 100, nsmall = 2), "%"),
+#             x = "Date", y = "Values") +
+#         ggplot2::theme_minimal() +
+#         ggplot2::guides(fill = ggplot2::guide_legend(title = "Prediction Intervals"),
+#                         color = ggplot2::guide_legend(title = "Series"))
+
+#       # Print or save the plot
+#         print(p)
+        
+
+#       h <- ggplot2::ggplot(calibration_set, ggplot2::aes(x = residuals)) +
+#         ggplot2::geom_histogram(binwidth = max(residuals) / 30, fill = "steelblue", color = "black") +  # Adjusted bin width
+#         ggplot2::geom_vline(ggplot2::aes(xintercept = q_val_80, color = "80% Threshold"), linetype = "dashed", size = 1.5) +
+#         ggplot2::geom_vline(ggplot2::aes(xintercept = q_val_95, color = "95% Threshold"), linetype = "dashed", size = 1.5) +
+#         ggplot2::scale_color_manual(values = c("80% Threshold" = "orange", "95% Threshold" = "#ff0000")) +
+#         ggplot2::labs(title = paste("Histogram of Residuals for Model ID:", model_id, " and Combo:", combo),
+#                       x = "Residuals", y = "Count") +
+#         ggplot2::theme_minimal() +
+#         ggplot2::guides(color = ggplot2::guide_legend(title = "Thresholds"))  # Add legend for the thresholds
+
+#       # Print histogram
+#       print(h)
+
+
+#     }
+
+
+#     # p <- ggplot2::ggplot(test_set, ggplot2::aes(x = Date, y = Target)) +
+#     #   ggplot2::geom_line(color = "blue", size = 1) +
+#     #   ggplot2::geom_line(ggplot2::aes(y = Forecast), color = "red", linetype = "dashed") +
+#     #   ggplot2::geom_ribbon(ggplot2::aes(ymin = lo_80, ymax = hi_80), fill = "orange", alpha = 0.4, inherit.aes = FALSE) +
+#     #   ggplot2::geom_ribbon(ggplot2::aes(ymin = lo_95, ymax = hi_95), fill = "yellow", alpha = 0.2, inherit.aes = FALSE) +
+#     #   ggplot2::labs(title = paste("Prediction Intervals for Model ID:", model_id, "Combo:", combo),
+#     #        subtitle = paste("Coverage 80%:", format(coverage_results[[key]]$coverage_80 * 100, nsmall = 2),
+#     #                         "%, 95%:", format(coverage_results[[key]]$coverage_95 * 100, nsmall = 2), "%"),
+#     #        x = "Date", y = "Values") +
+#     #   ggplot2::theme_minimal()
+
+#     # # Print or save the plot
+#     # print(p) 
+    
+
+
+#   }
+
+#   # Apply quantiles and coverages to calculate prediction intervals
+#   fcst_tbl <- fcst_tbl %>%
+#     dplyr::rowwise() %>%
+#     dplyr::mutate(
+#       key = paste(Combo, Model_ID, sep = "_"),
+#       lo_80 = Forecast - quantiles_list[[key]][1],
+#       hi_80 = Forecast + quantiles_list[[key]][1],
+#       lo_95 = Forecast - quantiles_list[[key]][2],
+#       hi_95 = Forecast + quantiles_list[[key]][2],
+#       coverage_80 = coverage_results[[key]]$coverage_80,
+#       coverage_95 = coverage_results[[key]]$coverage_95
+#     ) %>%
+#     dplyr::select(-key)
+ 
+# # Print or view coverage results
+
+
+#   # Print coverage results
+#   for (key in names(coverage_results)) {
+#     cat("-------------------------------------\n")
+#     cat("Coverage for", key, "\n")
+#     cat("-------------------------------------\n")
+#     cat((sprintf("Coverage for 80%% interval: %.2f%%\n",coverage_results[[key]]$coverage_80 * 100)))
+#     cat((sprintf("Coverage for 95%% interval: %.2f%%\n",coverage_results[[key]]$coverage_95 * 100)))
+#     cat("=====================================\n")
+#   }
+
+# # Z SCORE TESTING=====================
+#   # Calculate the split index
+
+# cat("\n=====================Z SCORE TESTING=====================\n")
+#   # Loop over each combination of Combo and Model_ID
+#   for (combo in unique(fcst_tbl_filtered$Combo)) {
+#     for (model_id in unique(fcst_tbl_filtered$Model_ID[fcst_tbl_filtered$Combo == combo])) {
+#       # Filter data for the current combo and model_id
+#       combo_model_data <- fcst_tbl_filtered %>%
+#         dplyr::filter(Combo == combo, Model_ID == model_id)
+ 
+#       # Split data into calibration and test sets
+#       n <- nrow(combo_model_data)
+#       split_index <- ceiling(split_ratio * n)
+
+
+#       calibration_set <- combo_model_data[1:split_index, ]
+#       test_set <- combo_model_data[(split_index + 1):n, ]
+
+
+
+#     #   # Print to check if there are matching IDs before filtering
+#     # cat("Before filtering, nrow(combo_model_data): ", nrow(combo_model_data), "\n")
+#     # cat("Unique Train_Test_IDs in combo_model_data: ", unique(combo_model_data$Train_Test_ID), "\n")
+#     # cat("Back test IDs: ", back_test_ids, "\n")
+
+#       # Filter step... we will use a "calibration" set... previously all test data was used, but this led to overfitting in testing..
+#       prediction_interval_tbl <- calibration_set %>%
+#           dplyr::filter(Train_Test_ID %in% back_test_ids) %>%
+#           dplyr::mutate(Residual = Target - Forecast) %>%
+#           dplyr::group_by(Combo, Model_ID) %>%
+#           dplyr::summarise(Residual_Std_Dev = sd(Residual, na.rm = TRUE)) %>%
+#           dplyr::ungroup()
+
+# # Check after filtering
+#         # cat("After filtering, nrow(prediction_interval_tbl): ", nrow(prediction_interval_tbl), "\n")
+
+
+#       # print(prediction_interval_tbl)
+
+#         fcst_tbl_z_score <- test_set %>%
+#         dplyr::left_join(prediction_interval_tbl,
+#           by = c("Model_ID", "Combo")
+#         ) %>%
+#         dplyr::mutate(
+#           lo_80 = Forecast - (1.28 * Residual_Std_Dev), 
+#           lo_95 = Forecast - (1.96 * Residual_Std_Dev), 
+#           hi_80 = Forecast + (1.28 * Residual_Std_Dev), 
+#           hi_95 = Forecast + (1.96 * Residual_Std_Dev),
+#           coverage_80_z = Target >= lo_80 & Target <= hi_80,
+#           coverage_95_z = Target >= lo_95 & Target <= hi_95
+#         ) %>%
+#         dplyr::select(-Residual_Std_Dev)
+#         # print(fcst_tbl_z_score)
+#         cat("Z Score CI estimator for ",paste(combo, model_id, sep = "_"), "\n")
+#         cat("80: ", (1.28 * prediction_interval_tbl$Residual_Std_Dev), "\n")
+#         cat("95: ", (1.96 * prediction_interval_tbl$Residual_Std_Dev), "\n")
+#         cat("\n")
+#         #fcst_tbl_z_score filtered by what is in test_set 
+        
+
+#         coverage_80_z <- mean(fcst_tbl_z_score$coverage_80_z, na.rm = TRUE)
+#         coverage_95_z <- mean(fcst_tbl_z_score$coverage_95_z, na.rm = TRUE)
+
+#       # Print results directly within the loop
+      
+#       # cat(sprintf("Combo: %s, Model ID: %s\n", combo, model_id))
+#       #combime the combo and model id, having it be combo_model_id
+#       cat("-------------------------------------\n")
+#       cat("Coverage for ",paste(combo, model_id, sep = "_"), "\n")
+
+#       cat("-------------------------------------\n")
+#       cat(sprintf("Coverage for 80%% interval: %.2f%%\n", coverage_80_z * 100))
+#       cat(sprintf("Coverage for 95%% interval: %.2f%%\n", coverage_95_z * 100))
+#       cat("=====================================\n")
+      
+#     }
+#   }
+#   cat("_________________________________________________")
+
+
+# # END Z SCORE TESTING=====================
+
+
+    
+    
+#     # View(fcst_tbl)
+#     # # Merge these prediction intervals back to the original dataset, ensuring all rows are kept
+#     # final_tbl <- fcst_tbl_ordered %>%
+#     #     dplyr::left_join(fcst_tbl %>% dplyr::select(Combo, Model_ID, Date, Train_Test_ID, lo_80, hi_80, lo_95, hi_95),
+#     #                      by = c("Combo", "Model_ID", "Date", "Train_Test_ID"))
+
+#     return(fcst_tbl)
+# }
+
+create_prediction_intervals <- function(fcst_tbl, train_test_split, conf_levels = c(0.80, 0.95), split_ratio = 0.8) {
+  # Extract the Train_Test_IDs for the Back_Test run type
+  back_test_ids <- train_test_split %>%
     dplyr::filter(Run_Type == "Back_Test") %>%
     dplyr::pull(Train_Test_ID)
 
-  # Filter and order forecast table by Date... probably not necessary lol
+  # Filter and order forecast table by Date
   fcst_tbl_filtered <- fcst_tbl %>%
     dplyr::filter(Train_Test_ID %in% back_test_ids) %>%
     dplyr::arrange(Date)
 
-  # Initialize lists to store quantile values and coverage results
+  # Initialize lists to store results
   quantiles_list <- list()
   coverage_results <- list()
-cat("\n=====================CONFORMAL TESTING=====================\n")
-  # Loop over each combination of Combo and Model_ID
+  z_score_results <- list()
+
+  cat("\n=====================PREDICTION INTERVAL TESTING=====================\n")
+
   for (combo in unique(fcst_tbl_filtered$Combo)) {
     for (model_id in unique(fcst_tbl_filtered$Model_ID[fcst_tbl_filtered$Combo == combo])) {
       # Filter data for the current combo and model_id
@@ -658,175 +899,141 @@ cat("\n=====================CONFORMAL TESTING=====================\n")
       calibration_set <- combo_model_data[1:split_index, ]
       test_set <- combo_model_data[(split_index + 1):n, ]
 
-      # Compute residuals and quantile values in the calibration set
+      # Conformal Prediction
       residuals <- abs(calibration_set$Target - calibration_set$Forecast)
-      q_val_80 <- quantile(residuals, probs = conf_levels[1], na.rm = TRUE)
+      q_vals <- sapply(conf_levels, function(cl) quantile(residuals, probs = cl, na.rm = TRUE))
+      #print(q_vals)
       cat("Q_vals for Model_ID: ", model_id, " and Combo: ", combo, "\n")
-      cat("q_val_80: ", q_val_80, "\n")
-      q_val_95 <- quantile(residuals, probs = conf_levels[2], na.rm = TRUE)
-      cat("q_val_95: ", q_val_95, "\n")
+      cat("q_val_80: ", q_vals[1], "\n")
+      cat("q_val_95: ", q_vals[2], "\n")
+      cat("=====================================\n")
 
-      # Store quantiles in the list using a unique key for each combo and model_id
+      # Z-Score Method
+      z_scores <- c(qnorm((1 + conf_levels[1]) / 2), qnorm((1 + conf_levels[2]) / 2))
+      residual_std_dev <- sd(calibration_set$Target - calibration_set$Forecast, na.rm = TRUE)
+      z_vals <- z_scores * residual_std_dev
+      cat("Z-Scores for Model_ID: ", model_id, " and Combo: ", combo, "\n")
+      cat("z_val_80: ", z_vals[1], "\n")
+      cat("z_val_95: ", z_vals[2], "\n")
+
+      # Store results
       key <- paste(combo, model_id, sep = "_")
-      quantiles_list[[key]] <- c(q_val_80, q_val_95)
+      quantiles_list[[key]] <- q_vals
+      z_score_results[[key]] <- z_vals
 
-      # Calculate coverage
+      # Calculate coverage for both methods
       test_set <- test_set %>%
         dplyr::mutate(
-          lo_80 = Forecast - q_val_80,
-          hi_80 = Forecast + q_val_80,
-          lo_95 = Forecast - q_val_95,
-          hi_95 = Forecast + q_val_95,
-          covered_80 = Target >= lo_80 & Target <= hi_80,
-          covered_95 = Target >= lo_95 & Target <= hi_95
+          lo_80_conf = Forecast - q_vals[1],
+          hi_80_conf = Forecast + q_vals[1],
+          lo_95_conf = Forecast - q_vals[2],
+          hi_95_conf = Forecast + q_vals[2],
+          lo_80_z = Forecast - z_vals[1],
+          hi_80_z = Forecast + z_vals[1],
+          lo_95_z = Forecast - z_vals[2],
+          hi_95_z = Forecast + z_vals[2],
+          covered_80_conf = Target >= lo_80_conf & Target <= hi_80_conf,
+          covered_95_conf = Target >= lo_95_conf & Target <= hi_95_conf,
+          covered_80_z = Target >= lo_80_z & Target <= hi_80_z,
+          covered_95_z = Target >= lo_95_z & Target <= hi_95_z
         )
 
-      # Store coverage rates
       coverage_results[[key]] <- list(
-        coverage_80 = mean(test_set$covered_80, na.rm = TRUE),
-        coverage_95 = mean(test_set$covered_95, na.rm = TRUE)
+        conf_80 = mean(test_set$covered_80_conf, na.rm = TRUE),
+        conf_95 = mean(test_set$covered_95_conf, na.rm = TRUE),
+        z_80 = mean(test_set$covered_80_z, na.rm = TRUE),
+        z_95 = mean(test_set$covered_95_z, na.rm = TRUE)
       )
+
+      # Create and print plots
+      p <- ggplot2::ggplot(test_set, ggplot2::aes(x = Date)) +
+        ggplot2::geom_line(ggplot2::aes(y = Target, color = "Actual"), size = 1) +
+        ggplot2::geom_line(ggplot2::aes(y = Forecast, color = "Forecast"), linetype = "dashed") +
+        ggplot2::geom_ribbon(ggplot2::aes(ymin = lo_80_conf, ymax = hi_80_conf, fill = "80% Conf"), alpha = 0.3) +
+        ggplot2::geom_ribbon(ggplot2::aes(ymin = lo_95_conf, ymax = hi_95_conf, fill = "95% Conf"), alpha = 0.2) +
+        ggplot2::geom_ribbon(ggplot2::aes(ymin = lo_80_z, ymax = hi_80_z, fill = "80% Z"), alpha = 0.3) +
+        ggplot2::geom_ribbon(ggplot2::aes(ymin = lo_95_z, ymax = hi_95_z, fill = "95% Z"), alpha = 0.2) +
+        ggplot2::scale_color_manual(values = c("Actual" = "blue", "Forecast" = "red")) +
+        ggplot2::scale_fill_manual(values = c("80% Conf" = "orange", "95% Conf" = "#ffbb00", "80% Z" = "green", "95% Z" = "lightgreen")) +
+        ggplot2::labs(title = paste("Prediction Intervals for Model ID:", model_id, "and Combo:", combo),
+                      subtitle = paste("Conformal Coverage: 80%:", format(coverage_results[[key]]$conf_80 * 100, nsmall = 2),
+                                       "%, 95%:", format(coverage_results[[key]]$conf_95 * 100, nsmall = 2), "%\n",
+                                       "Z-Score Coverage: 80%:", format(coverage_results[[key]]$z_80 * 100, nsmall = 2),
+                                       "%, 95%:", format(coverage_results[[key]]$z_95 * 100, nsmall = 2), "%"),
+                      x = "Date", y = "Values") +
+        ggplot2::theme_minimal() +
+        ggplot2::guides(fill = ggplot2::guide_legend(title = "Prediction Intervals"),
+                        color = ggplot2::guide_legend(title = "Series"))
+
+      print(p)
+      #save the plot
+      ggplot2::ggsave(paste0("plots/prediction_intervals_", key, ".png"), plot = p, width = 10, height = 6, dpi = 300)
+
     }
 
+    # Create and print histogram plot
+      h <- ggplot2::ggplot(calibration_set, ggplot2::aes(x = abs(Target - Forecast))) +
+        ggplot2::geom_histogram(binwidth = max(abs(calibration_set$Target - calibration_set$Forecast), na.rm = TRUE) / 30, 
+                                fill = "steelblue", color = "black") +
+        ggplot2::geom_vline(ggplot2::aes(xintercept = q_vals[1], color = "80% Threshold"), 
+                            linetype = "dashed", size = 1.5) +
+        ggplot2::geom_vline(ggplot2::aes(xintercept = q_vals[2], color = "95% Threshold"), 
+                            linetype = "dashed", size = 1.5) +
+        ggplot2::geom_vline(ggplot2::aes(xintercept = z_vals[1], color = "80% Z-Score"), 
+                            linetype = "dotted", size = 1.5) +
+        ggplot2::geom_vline(ggplot2::aes(xintercept = z_vals[2], color = "95% Z-Score"), 
+                            linetype = "dotted", size = 1.5) +
+        ggplot2::scale_color_manual(values = c("80% Threshold" = "orange", "95% Threshold" = "red",
+                                               "80% Z-Score" = "green", "95% Z-Score" = "blue")) +
+        ggplot2::labs(title = paste("Histogram of Residuals for Model ID:", model_id, "and Combo:", combo),
+                      x = "Absolute Residuals", y = "Count") +
+        ggplot2::theme_minimal() +
+        ggplot2::guides(color = ggplot2::guide_legend(title = "Thresholds"))
 
-    # p <- ggplot2::ggplot(test_set, ggplot2::aes(x = Date, y = Target)) +
-    #   ggplot2::geom_line(color = "blue", size = 1) +
-    #   ggplot2::geom_line(ggplot2::aes(y = Forecast), color = "red", linetype = "dashed") +
-    #   ggplot2::geom_ribbon(ggplot2::aes(ymin = lo_80, ymax = hi_80), fill = "orange", alpha = 0.4, inherit.aes = FALSE) +
-    #   ggplot2::geom_ribbon(ggplot2::aes(ymin = lo_95, ymax = hi_95), fill = "yellow", alpha = 0.2, inherit.aes = FALSE) +
-    #   ggplot2::labs(title = paste("Prediction Intervals for Model ID:", model_id, "Combo:", combo),
-    #        subtitle = paste("Coverage 80%:", format(coverage_results[[key]]$coverage_80 * 100, nsmall = 2),
-    #                         "%, 95%:", format(coverage_results[[key]]$coverage_95 * 100, nsmall = 2), "%"),
-    #        x = "Date", y = "Values") +
-    #   ggplot2::theme_minimal()
+      print(h)
 
-    # # Print or save the plot
-    # print(p) 
-    
-
-
+      #save the plot
+      ggplot2::ggsave(paste0("plots/histogram_residuals_", key, ".png"), plot = h, width = 10, height = 6, dpi = 300)
   }
 
-  # Apply quantiles and coverages to calculate prediction intervals
-  fcst_tbl <- fcst_tbl %>%
-    dplyr::rowwise() %>%
-    dplyr::mutate(
-      key = paste(Combo, Model_ID, sep = "_"),
-      lo_80 = Forecast - quantiles_list[[key]][1],
-      hi_80 = Forecast + quantiles_list[[key]][1],
-      lo_95 = Forecast - quantiles_list[[key]][2],
-      hi_95 = Forecast + quantiles_list[[key]][2],
-      coverage_80 = coverage_results[[key]]$coverage_80,
-      coverage_95 = coverage_results[[key]]$coverage_95
-    ) %>%
-    dplyr::select(-key)
- 
-# Print or view coverage results
-
-
   # Print coverage results
+  cat("\n=======================COVERAGE RESULTS==========================\n")
   for (key in names(coverage_results)) {
     cat("-------------------------------------\n")
     cat("Coverage for", key, "\n")
     cat("-------------------------------------\n")
-    cat((sprintf("Coverage for 80%% interval: %.2f%%\n",coverage_results[[key]]$coverage_80 * 100)))
-    cat((sprintf("Coverage for 95%% interval: %.2f%%\n",coverage_results[[key]]$coverage_95 * 100)))
+    cat(sprintf("Conformal 80%% interval: %.2f%%\n", coverage_results[[key]]$conf_80 * 100))
+    cat(sprintf("Conformal 95%% interval: %.2f%%\n", coverage_results[[key]]$conf_95 * 100))
+    cat(sprintf("Z-Score 80%% interval: %.2f%%\n", coverage_results[[key]]$z_80 * 100))
+    cat(sprintf("Z-Score 95%% interval: %.2f%%\n", coverage_results[[key]]$z_95 * 100))
     cat("=====================================\n")
   }
 
-# Z SCORE TESTING=====================
-  # Calculate the split index
+  # Apply best method to full dataset
+  fcst_tbl <- fcst_tbl %>%
+    dplyr::rowwise() %>%
+    dplyr::mutate(
+      key = paste(Combo, Model_ID, sep = "_"),
+      lo_80 = Forecast - ifelse(coverage_results[[key]]$z_80 > coverage_results[[key]]$conf_80, 
+                                z_score_results[[key]][1], quantiles_list[[key]][1]),
+      hi_80 = Forecast + ifelse(coverage_results[[key]]$z_80 > coverage_results[[key]]$conf_80, 
+                                z_score_results[[key]][1], quantiles_list[[key]][1]),
+      lo_95 = Forecast - ifelse(coverage_results[[key]]$z_95 > coverage_results[[key]]$conf_95, 
+                                z_score_results[[key]][2], quantiles_list[[key]][2]),
+      hi_95 = Forecast + ifelse(coverage_results[[key]]$z_95 > coverage_results[[key]]$conf_95, 
+                                z_score_results[[key]][2], quantiles_list[[key]][2]),
+      method_80 = ifelse(coverage_results[[key]]$z_80 > coverage_results[[key]]$conf_80, "Z-Score", "Conformal"),
+      method_95 = ifelse(coverage_results[[key]]$z_95 > coverage_results[[key]]$conf_95, "Z-Score", "Conformal"),
+      coverage_80 = ifelse(coverage_results[[key]]$z_80 > coverage_results[[key]]$conf_80, 
+                           coverage_results[[key]]$z_80, coverage_results[[key]]$conf_80),
+      coverage_95 = ifelse(coverage_results[[key]]$z_95 > coverage_results[[key]]$conf_95,
+                           coverage_results[[key]]$z_95, coverage_results[[key]]$conf_95),
+    ) %>%
+    dplyr::select(-key)
 
-cat("\n=====================Z SCORE TESTING=====================\n")
-  # Loop over each combination of Combo and Model_ID
-  for (combo in unique(fcst_tbl_filtered$Combo)) {
-    for (model_id in unique(fcst_tbl_filtered$Model_ID[fcst_tbl_filtered$Combo == combo])) {
-      # Filter data for the current combo and model_id
-      combo_model_data <- fcst_tbl_filtered %>%
-        dplyr::filter(Combo == combo, Model_ID == model_id)
- 
-      # Split data into calibration and test sets
-      n <- nrow(combo_model_data)
-      split_index <- ceiling(split_ratio * n)
+    View(fcst_tbl)
 
-
-      calibration_set <- combo_model_data[1:split_index, ]
-      test_set <- combo_model_data[(split_index + 1):n, ]
-
-
-
-    #   # Print to check if there are matching IDs before filtering
-    # cat("Before filtering, nrow(combo_model_data): ", nrow(combo_model_data), "\n")
-    # cat("Unique Train_Test_IDs in combo_model_data: ", unique(combo_model_data$Train_Test_ID), "\n")
-    # cat("Back test IDs: ", back_test_ids, "\n")
-
-      # Filter step... we will use a "calibration" set... previously all test data was used, but this led to overfitting in testing..
-      prediction_interval_tbl <- calibration_set %>%
-          dplyr::filter(Train_Test_ID %in% back_test_ids) %>%
-          dplyr::mutate(Residual = Target - Forecast) %>%
-          dplyr::group_by(Combo, Model_ID) %>%
-          dplyr::summarise(Residual_Std_Dev = sd(Residual, na.rm = TRUE)) %>%
-          dplyr::ungroup()
-
-# Check after filtering
-        # cat("After filtering, nrow(prediction_interval_tbl): ", nrow(prediction_interval_tbl), "\n")
-
-
-      # print(prediction_interval_tbl)
-
-        fcst_tbl_z_score <- test_set %>%
-        dplyr::left_join(prediction_interval_tbl,
-          by = c("Model_ID", "Combo")
-        ) %>%
-        dplyr::mutate(
-          lo_80 = Forecast - (1.28 * Residual_Std_Dev), 
-          lo_95 = Forecast - (1.96 * Residual_Std_Dev), 
-          hi_80 = Forecast + (1.28 * Residual_Std_Dev), 
-          hi_95 = Forecast + (1.96 * Residual_Std_Dev),
-          coverage_80_z = Target >= lo_80 & Target <= hi_80,
-          coverage_95_z = Target >= lo_95 & Target <= hi_95
-        ) %>%
-        dplyr::select(-Residual_Std_Dev)
-        # print(fcst_tbl_z_score)
-        cat("Z Score CI estimator for ",paste(combo, model_id, sep = "_"), "\n")
-        cat("80: ", (1.28 * prediction_interval_tbl$Residual_Std_Dev), "\n")
-        cat("95: ", (1.96 * prediction_interval_tbl$Residual_Std_Dev), "\n")
-        cat("\n")
-        #fcst_tbl_z_score filtered by what is in test_set 
-        
-
-        coverage_80_z <- mean(fcst_tbl_z_score$coverage_80_z, na.rm = TRUE)
-        coverage_95_z <- mean(fcst_tbl_z_score$coverage_95_z, na.rm = TRUE)
-
-      # Print results directly within the loop
-      
-      # cat(sprintf("Combo: %s, Model ID: %s\n", combo, model_id))
-      #combime the combo and model id, having it be combo_model_id
-      cat("-------------------------------------\n")
-      cat("Coverage for ",paste(combo, model_id, sep = "_"), "\n")
-
-      cat("-------------------------------------\n")
-      cat(sprintf("Coverage for 80%% interval: %.2f%%\n", coverage_80_z * 100))
-      cat(sprintf("Coverage for 95%% interval: %.2f%%\n", coverage_95_z * 100))
-      cat("=====================================\n")
-      
-    }
-  }
-  cat("_________________________________________________")
-
-
-# END Z SCORE TESTING=====================
-
-
-    
-    
-    # View(fcst_tbl)
-    # # Merge these prediction intervals back to the original dataset, ensuring all rows are kept
-    # final_tbl <- fcst_tbl_ordered %>%
-    #     dplyr::left_join(fcst_tbl %>% dplyr::select(Combo, Model_ID, Date, Train_Test_ID, lo_80, hi_80, lo_95, hi_95),
-    #                      by = c("Combo", "Model_ID", "Date", "Train_Test_ID"))
-
-    return(fcst_tbl)
+  return(fcst_tbl)
 }
 #' Convert weekly forecast down to daily
 #'

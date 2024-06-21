@@ -13,12 +13,14 @@
   #     Date <= "2015-06-01"
   #   )
 
+
+
   data_tbl <- timetk::m4_monthly %>%
     dplyr::rename(Date = date) %>%
     dplyr::mutate(id = as.character(id)) %>%
     dplyr::filter(
-      id == c("M1", "M2"),
-    Date >= "2000-01-01",
+      id == c("M1", "M2", "M750" ,"M1000"),
+    Date >= "2010-12-01",
       Date <= "2015-06-01")
 
 
@@ -34,12 +36,10 @@
     recipes_to_run = "R1"
   )
 
-  # prep_models(run_info
-  # )
-
+ 
 
   prep_models(run_info,
-    models_to_run = c("xgboost"),
+    models_to_run = c("arima"),
   )
 
 
