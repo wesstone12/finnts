@@ -908,6 +908,25 @@ create_prediction_intervals <- function(fcst_tbl, train_test_split, conf_levels 
         alpha <- 1 - cl
         quantile(abs(residuals), probs = 1- alpha, na.rm = TRUE)
       })
+      cat("Alpha values: ", 1 - conf_levels, "\n")
+      cat("Prob. for quantile: ", 1- (1- conf_levels), "\n")
+      
+
+      #Quantile explanation
+      # We use (1-alpha) to get the quantile probability, where alpha is the (1 - confidence level)
+      # This captures the two-sided interval, (lower and upper bounds)
+
+      #For an 80% interval (alpha = 0.2)
+      # We want the 0.9 percentile (1 - .2) = 90th percentile (10 above and 10 below)
+      # Ensures 10% of values are above and 10% are below the interval, total 20% outside the interval
+
+      #For a 95% interval (alpha = 0.05)
+      # We want the 0.975 percentile (1 - .05) = 97.5th percentile (2.5 above and 2.5 below)
+      # Ensures 2.5% of values are above and 2.5% are below the interval, total 5% outside the interval
+
+
+
+
       #print(q_vals)
       cat("Q_vals for Model_ID: ", model_id, " and Combo: ", combo, "\n")
       cat("q_val_80: ", q_vals[1], "\n")

@@ -19,10 +19,9 @@
     dplyr::rename(Date = date) %>%
     dplyr::mutate(id = as.character(id)) %>%
     dplyr::filter(
-      id == c("M750" ),
+      id == c("M1","M2", "M750" ),
     Date >= "2000-12-01",
       Date <= "2015-06-01")
-
 
 
   run_info <- set_run_info()
@@ -39,7 +38,7 @@
  
 
   prep_models(run_info,
-    models_to_run = c("arima"),
+    models_to_run = c("meanf"),
   )
 
 
