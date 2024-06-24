@@ -38,7 +38,7 @@
  
 
   prep_models(run_info,
-    models_to_run = c("xgboost"),
+    models_to_run = c("arima", "arimax","xgboost"),
   )
 
 
@@ -49,7 +49,7 @@
 
 
   final_models(run_info,
-    average_models = FALSE
+    average_models = TRUE
   )
 
   fcst_tbl <- get_forecast_data(run_info)
