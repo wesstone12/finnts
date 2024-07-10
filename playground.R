@@ -19,8 +19,8 @@
     dplyr::rename(Date = date) %>%
     dplyr::mutate(id = as.character(id)) %>%
     dplyr::filter(
-      id == c("M1","M2", "M750" ),
-    Date >= "2000-12-01",
+      id == c("M1" ),
+    Date >= "2005-12-01",
       Date <= "2015-01-01")
 
 
@@ -38,7 +38,7 @@
  
 
   prep_models(run_info,
-    models_to_run = c("arima", "arimax","xgboost"),
+    models_to_run = c("xgboost"),
   )
 
 
@@ -55,5 +55,3 @@
   fcst_tbl <- get_forecast_data(run_info)
   # }
 
-  # View(fcst_tbl)
-  # print(fcst_tbl)
