@@ -745,59 +745,113 @@ create_prediction_intervals <- function(fcst_tbl, train_test_split, conf_levels 
           covered_95_z = Target >= lo_95_z & Target <= hi_95_z
         )
 
+      calibration_set <- calibration_set %>%
+        dplyr::mutate(
+          lo_80_conf = Forecast - q_vals[1],
+          hi_80_conf = Forecast + q_vals[1],
+          lo_95_conf = Forecast - q_vals[2],
+          hi_95_conf = Forecast + q_vals[2],
+          lo_80_z = Forecast - z_vals[1],
+          hi_80_z = Forecast + z_vals[1],
+          lo_95_z = Forecast - z_vals[2],
+          hi_95_z = Forecast + z_vals[2]
+        )
+
       coverage_results[[key]] <- list(
         conf_80 = mean(test_set$covered_80_conf, na.rm = TRUE),
         conf_95 = mean(test_set$covered_95_conf, na.rm = TRUE),
         z_80 = mean(test_set$covered_80_z, na.rm = TRUE),
         z_95 = mean(test_set$covered_95_z, na.rm = TRUE)
       )
-
-      # Create and print plots
-      p <- ggplot2::ggplot(test_set, ggplot2::aes(x = Date)) +
-        ggplot2::geom_line(ggplot2::aes(y = Target, color = "Actual"), size = 1) +
-        ggplot2::geom_line(ggplot2::aes(y = Forecast, color = "Forecast"), linetype = "dashed") +
-        ggplot2::geom_ribbon(ggplot2::aes(ymin = lo_80_conf, ymax = hi_80_conf, fill = "80% Conf"), alpha = 0.3) +
-        ggplot2::geom_ribbon(ggplot2::aes(ymin = lo_95_conf, ymax = hi_95_conf, fill = "95% Conf"), alpha = 0.2) +
-        ggplot2::geom_ribbon(ggplot2::aes(ymin = lo_80_z, ymax = hi_80_z, fill = "80% Z"), alpha = 0.3) +
-        ggplot2::geom_ribbon(ggplot2::aes(ymin = lo_95_z, ymax = hi_95_z, fill = "95% Z"), alpha = 0.2) +
-        ggplot2::scale_color_manual(values = c("Actual" = "blue", "Forecast" = "red")) +
-        ggplot2::scale_fill_manual(values = c("80% Conf" = "orange", "95% Conf" = "#ffbb00", "80% Z" = "green", "95% Z" = "lightgreen")) +
-        ggplot2::labs(title = paste("Prediction Intervals for Model ID:", model_id, "and Combo:", combo),
-                      subtitle = paste("Conformal Coverage: 80%:", format(coverage_results[[key]]$conf_80 * 100, nsmall = 2),
-                                       "%, 95%:", format(coverage_results[[key]]$conf_95 * 100, nsmall = 2), "%\n",
-                                       "Z-Score Coverage: 80%:", format(coverage_results[[key]]$z_80 * 100, nsmall = 2),
-                                       "%, 95%:", format(coverage_results[[key]]$z_95 * 100, nsmall = 2), "%"),
-                      x = "Date", y = "Values") +
+    # Create and print plots including both calibration and test data
+# Create and print plots including both calibration and test data
+          p <- ggplot2::ggplot() +
+        ggplot2::geom_line(data = calibration_set, ggplot2::aes(x = Date, y = Target, color = "Calibration Actual"), size = 1) +
+        ggplot2::geom_line(data = calibration_set, ggplot2::aes(x = Date, y = Forecast, color = "Calibration Forecast")) +
+        ggplot2::geom_ribbon(data = calibration_set, ggplot2::aes(x = Date, ymin = lo_80_conf, ymax = hi_80_conf, fill = "80% Confidence: Conformal Split"), alpha = 0.3) +
+        ggplot2::geom_ribbon(data = calibration_set, ggplot2::aes(x = Date, ymin = lo_95_conf, ymax = hi_95_conf, fill = "95% Confidence: Conformal Split"), alpha = 0.2) +
+        ggplot2::geom_ribbon(data = calibration_set, ggplot2::aes(x = Date, ymin = lo_80_z, ymax = hi_80_z, fill = "80% Confidence: Z-Score"), alpha = 0.3) +
+        ggplot2::geom_ribbon(data = calibration_set, ggplot2::aes(x = Date, ymin = lo_95_z, ymax = hi_95_z, fill = "95% Confidence: Z-Score"), alpha = 0.2) +
+        ggplot2::geom_line(data = test_set, ggplot2::aes(x = Date, y = Target, color = "Test Actual"), linetype = "dashed" , size = 1) +
+        ggplot2::geom_line(data = test_set, ggplot2::aes(x = Date, y = Forecast, color = "Test Forecast"), linetype = "dashed") +
+        ggplot2::geom_ribbon(data = test_set, ggplot2::aes(x = Date, ymin = lo_80_conf, ymax = hi_80_conf, fill = "80% Confidence: Conformal Split"), alpha = 0.3) +
+        ggplot2::geom_ribbon(data = test_set, ggplot2::aes(x = Date, ymin = lo_95_conf, ymax = hi_95_conf, fill = "95% Confidence: Conformal Split"), alpha = 0.2) +
+        ggplot2::geom_ribbon(data = test_set, ggplot2::aes(x = Date, ymin = lo_80_z, ymax = hi_80_z, fill = "80% Confidence: Z-Score"), alpha = 0.3) +
+        ggplot2::geom_ribbon(data = test_set, ggplot2::aes(x = Date, ymin = lo_95_z, ymax = hi_95_z, fill = "95% Confidence: Z-Score"), alpha = 0.2) +
+        ggplot2::scale_color_manual(values = c(
+          "Calibration Actual" = "blue", "Calibration Forecast" = "red",
+          "Test Actual" = "blue", "Test Forecast" = "red"
+        )) +
+        ggplot2::scale_fill_manual(values = c(
+          "80% Confidence: Conformal Split" = "#ffa601",
+          "95% Confidence: Conformal Split" = "#ffbb00",
+          "80% Confidence: Z-Score" = "#af4ced",
+          "95% Confidence: Z-Score" = "#cc91f1"
+        )) +
+        ggplot2::labs(
+          title = paste("Prediction Intervals for Model ID:", model_id, "and Combo:", combo),
+          subtitle = paste(
+            "Conformal Coverage: 80%:", format(coverage_results[[key]]$conf_80 * 100, nsmall = 2),
+            "%, 95%:", format(coverage_results[[key]]$conf_95 * 100, nsmall = 2), "%\n",
+            "Z-Score Coverage: 80%:", format(coverage_results[[key]]$z_80 * 100, nsmall = 2),
+            "%, 95%:", format(coverage_results[[key]]$z_95 * 100, nsmall = 2), "%"
+          ),
+          x = "Date", y = "Values"
+        ) +
         ggplot2::theme_minimal() +
-        ggplot2::guides(fill = ggplot2::guide_legend(title = "Prediction Intervals"),
-                        color = ggplot2::guide_legend(title = "Series"))
+        ggplot2::theme(
+          panel.background = ggplot2::element_rect(fill = "white"),
+          legend.background = ggplot2::element_rect(fill = "white"),
+          legend.key = ggplot2::element_rect(fill = "white", colour = "white")
+        ) +
+        ggplot2::guides(
+          fill = ggplot2::guide_legend(title = "Prediction Intervals"),
+          color = ggplot2::guide_legend(title = "Series")
+        )
 
       print(p)
+
+
+
       #save the plot
       ggplot2::ggsave(paste0("plots/prediction_intervals_", key, ".png"), plot = p, width = 10, height = 6, dpi = 300)
 
     }
 
-    # Create and print histogram plot
-      h <- ggplot2::ggplot(calibration_set, ggplot2::aes(x = abs(Target - Forecast))) +
-        ggplot2::geom_histogram(binwidth = max(abs(calibration_set$Target - calibration_set$Forecast), na.rm = TRUE) / 30, 
-                                fill = "steelblue", color = "black") +
-        ggplot2::geom_vline(ggplot2::aes(xintercept = q_vals[1], color = "80% Threshold"), 
-                            linetype = "dashed", size = 1.5) +
-        ggplot2::geom_vline(ggplot2::aes(xintercept = q_vals[2], color = "95% Threshold"), 
-                            linetype = "dashed", size = 1.5) +
-        ggplot2::geom_vline(ggplot2::aes(xintercept = z_vals[1], color = "80% Z-Score"), 
-                            linetype = "dotted", size = 1.5) +
-        ggplot2::geom_vline(ggplot2::aes(xintercept = z_vals[2], color = "95% Z-Score"), 
-                            linetype = "dotted", size = 1.5) +
-        ggplot2::scale_color_manual(values = c("80% Threshold" = "orange", "95% Threshold" = "red",
-                                               "80% Z-Score" = "green", "95% Z-Score" = "blue")) +
-        ggplot2::labs(title = paste("Histogram of Residuals for Model ID:", model_id, "and Combo:", combo),
-                      x = "Absolute Residuals", y = "Count") +
-        ggplot2::theme_minimal() +
-        ggplot2::guides(color = ggplot2::guide_legend(title = "Thresholds"))
+        # Create and print histogram plot
+    h <- ggplot2::ggplot(calibration_set, ggplot2::aes(x = abs(Target - Forecast))) +
+      ggplot2::geom_histogram(binwidth = max(abs(calibration_set$Target - calibration_set$Forecast), na.rm = TRUE) / 30, 
+                              fill = "steelblue", color = "black") +
+      ggplot2::geom_vline(ggplot2::aes(xintercept = q_vals[1], color = "80% Confidence: Conformal Split"), 
+                           size = 1.5) +
+      ggplot2::geom_vline(ggplot2::aes(xintercept = q_vals[2], color = "95% Confidence: Conformal Split"), 
+                          size = 1.5) +
+      ggplot2::geom_vline(ggplot2::aes(xintercept = z_vals[1], color = "80% Confidence: Z-Score"), 
+                          linetype = "dotted", size = 1.5) +
+      ggplot2::geom_vline(ggplot2::aes(xintercept = z_vals[2], color = "95% Confidence: Z-Score"), 
+                          linetype = "dotted", size = 1.5) +
+      ggplot2::scale_color_manual(values = c(
+        "80% Confidence: Conformal Split" = "orange",
+        "95% Confidence: Conformal Split" = "red",
+        "80% Confidence: Z-Score" = "green",
+        "95% Confidence: Z-Score" = "blue"
+      )) +
+      ggplot2::labs(
+        title = paste("Histogram of Residuals for Model ID:", model_id, "and Combo:", combo),
+        x = "Absolute Residuals", y = "Count"
+      ) +
+      ggplot2::theme_minimal() +
+      ggplot2::theme(
+        panel.background = ggplot2::element_rect(fill = "white"),
+        legend.background = ggplot2::element_rect(fill = "white")
+      ) +
+      ggplot2::guides(color = ggplot2::guide_legend(title = "Thresholds"))
 
-      print(h)
+    print(h)
+
+# Save the plot
+ggplot2::ggsave(paste0("plots/histogram_residuals_", key, ".png"), plot = h, width = 10, height = 6, dpi = 300)
+
 
       #save the plot
       ggplot2::ggsave(paste0("plots/histogram_residuals_", key, ".png"), plot = h, width = 10, height = 6, dpi = 300)
@@ -844,6 +898,36 @@ create_prediction_intervals <- function(fcst_tbl, train_test_split, conf_levels 
     dplyr::select(-key)
 
     View(fcst_tbl)
+  f_plot <- ggplot2::ggplot(fcst_tbl, ggplot2::aes(x = Date)) +
+    ggplot2::geom_line(ggplot2::aes(y = Forecast, color = "Forecast"), linetype = "dashed", size = 1) +  # Forecast in dashed line
+    ggplot2::geom_line(ggplot2::aes(y = Target, color = "Actual"), size = 1) +  # Adding actuals as a solid line
+    ggplot2::geom_ribbon(ggplot2::aes(ymin = lo_80, ymax = hi_80, fill = "80% Confidence Interval"), alpha = 0.3) +
+    ggplot2::geom_ribbon(ggplot2::aes(ymin = lo_95, ymax = hi_95, fill = "95% Confidence Interval"), alpha = 0.2) +
+    ggplot2::scale_color_manual(values = c("Forecast" = "red", "Actual" = "blue")) +  # Adjusted to include actuals
+    ggplot2::scale_fill_manual(values = c(
+      "80% Confidence Interval" = "orange",
+      "95% Confidence Interval" = "#ffbb00"
+    )) +
+    ggplot2::labs(
+      title = "Final Forecast Table Visualization",
+      x = "Date", y = "Forecast Values"
+    ) +
+    ggplot2::theme_minimal() +
+    ggplot2::theme(
+      panel.background = ggplot2::element_rect(fill = "white"),
+      legend.background = ggplot2::element_rect(fill = "white"),
+      legend.key = ggplot2::element_rect(fill = "white", colour = "white")  # Ensure legend keys are also white
+    ) +
+    ggplot2::guides(
+      fill = ggplot2::guide_legend(title = "Confidence Intervals"),
+      color = ggplot2::guide_legend(title = "Series")  # Clearly distinguish between Forecast and Actual
+    )
+
+  print(f_plot)
+
+  # Save the plot
+  ggplot2::ggsave("plots/final_forecast_plot.png", plot = f_plot, width = 10, height = 6, dpi = 300)
+
 
   return(fcst_tbl)
 }
