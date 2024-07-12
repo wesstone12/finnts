@@ -17,11 +17,7 @@
 
   data_tbl <- timetk::m4_monthly %>%
     dplyr::rename(Date = date) %>%
-    dplyr::mutate(id = as.character(id)) %>%
-    dplyr::filter(
-      id == c("M1" ),
-    Date >= "2010-12-01",
-      Date <= "2015-01-01")
+    dplyr::mutate(id = as.character(id)) 
 
 
   run_info <- set_run_info()
@@ -31,14 +27,14 @@
     combo_variables = c("id"),
     target_variable = "value",
     date_type = "month",
-    forecast_horizon = 3,
+    forecast_horizon = 6,
     recipes_to_run = "R1"
   )
 
  
 
   prep_models(run_info,
-    models_to_run = c("arima"),
+    models_to_run = c("meanf", "arima", "xgboost","arima-boost", "arimax", "theta","ets", "glmnet"),
   )
 
 
@@ -55,5 +51,5 @@
   fcst_tbl <- get_forecast_data(run_info)
   # }
 
-  # View(fcst_tbl)
+  View(fcst_tbl)
   # print(fcst_tbl)
