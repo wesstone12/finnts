@@ -880,18 +880,18 @@ create_prediction_intervals <- function(fcst_tbl, train_test_split, conf_levels 
       f_plot <- ggplot2::ggplot(group, ggplot2::aes(x = Date)) +
         ggplot2::geom_line(ggplot2::aes(y = Forecast, color = "Forecast"), linetype = "dashed", size = 1) +
         ggplot2::geom_line(ggplot2::aes(y = Target, color = "Actual"), size = 1) +
-        ggplot2::geom_ribbon(ggplot2::aes(ymin = lo_80, ymax = hi_80, fill = "80% Confidence Interval"), alpha = 0.3) +
-        ggplot2::geom_ribbon(ggplot2::aes(ymin = lo_95, ymax = hi_95, fill = "95% Confidence Interval"), alpha = 0.2) +
+        ggplot2::geom_ribbon(ggplot2::aes(ymin = lo_80, ymax = hi_80, fill = "80% Prediction Interval"), alpha = 0.3) +
+        ggplot2::geom_ribbon(ggplot2::aes(ymin = lo_95, ymax = hi_95, fill = "95% Prediction Interval"), alpha = 0.2) +
         ggplot2::scale_color_manual(values = c("Forecast" = "red", "Actual" = "blue")) +
         ggplot2::scale_fill_manual(values = c(
-          "80% Confidence Interval" = "orange",
-          "95% Confidence Interval" = "#ffbb00"
+          "80% Prediction Interval" = "orange",
+          "95% Prediction Interval" = "#ffbb00"
         )) +
         ggplot2::labs(
-          title = paste("Forecast Visualization for Model", current_model, "and Combo", current_combo),
+          title = paste("Forecast Visualization with Conformal Prediction Intervals for Model", current_model, "and Combo", current_combo),
           subtitle = paste(
-            "80% CI Method:", unique(group$method_80), "- Coverage:", format(unique(group$coverage_80) * 100, digits = 2), "%\n",
-            "95% CI Method:", unique(group$method_95), "- Coverage:", format(unique(group$coverage_95) * 100, digits = 2), "%"
+            "80% PI Method:", unique(group$method_80), "- Coverage:", format(unique(group$coverage_80) * 100, digits = 2), "%\n",
+            "95% PI Method:", unique(group$method_95), "- Coverage:", format(unique(group$coverage_95) * 100, digits = 2), "%"
           ),
           x = "Date", y = "Forecast Values"
         ) +
@@ -915,6 +915,12 @@ create_prediction_intervals <- function(fcst_tbl, train_test_split, conf_levels 
       )
     }
 
+  
+    filename <- paste0("final_forecast_table/forecast_table_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".csv")
+
+    write.csv(fcst_tbl, file = filename, row.names = FALSE)
+    log_message("Forecast table written to:", filename)
+
     log_message("=======================CCOMPLETE==========================")
   }, error = function(e) {
     log_message("Error occurred:", conditionMessage(e))
@@ -923,7 +929,10 @@ create_prediction_intervals <- function(fcst_tbl, train_test_split, conf_levels 
     sink(type = "message")
     close(log_conn)
   })
-  
+  #save fcst_tbl to file in 'final forecast table' folder
+ 
+
+
   return(fcst_tbl)
 }
 #' Convert weekly forecast down to daily

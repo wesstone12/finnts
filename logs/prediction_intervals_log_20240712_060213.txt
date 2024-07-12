@@ -1,0 +1,26 @@
+2024-07-12 06:02:13 - =======================START TEST========================== 
+2024-07-12 06:02:13 - Confidence levels: 0.8, 0.95 
+2024-07-12 06:02:13 - Split ratio: 0.8 
+2024-07-12 06:02:13 - Number of back test IDs: 93 
+2024-07-12 06:02:13 - Filtered forecast table rows: 543 
+2024-07-12 06:02:13 - =====================PREDICTION INTERVAL TESTING===================== 
+2024-07-12 06:02:13 - Processing Combo: M2 Model ID: arima--local--R1_ets--local--R1 
+2024-07-12 06:02:13 - Number of rows in calibration set: 435 
+2024-07-12 06:02:13 - Number of rows in test set: 108 
+2024-07-12 06:02:13 - Q_vals for Model_ID: arima--local--R1_ets--local--R1 and Combo: M2 
+2024-07-12 06:02:13 - q_val_80: 666.666981073522 
+2024-07-12 06:02:13 - q_val_95: 865.26147288233 
+2024-07-12 06:02:13 - Z-Scores for Model_ID: arima--local--R1_ets--local--R1 and Combo: M2 
+2024-07-12 06:02:13 - z_val_80: 470.446560888013 
+2024-07-12 06:02:13 - z_val_95: 719.485926888477 
+2024-07-12 06:02:14 - Saving histogram plot to: plots/histogram_residuals_M2_arima--local--R1_ets--local--R1.png 
+2024-07-12 06:02:15 - =======================COVERAGE RESULTS========================== 
+2024-07-12 06:02:15 - ------------------------------------- 
+2024-07-12 06:02:15 - Coverage for M2_arima--local--R1_ets--local--R1 
+2024-07-12 06:02:15 - ------------------------------------- 
+2024-07-12 06:02:15 - Conformal 80% interval: 93.52% 
+2024-07-12 06:02:15 - Conformal 95% interval: 100.00% 
+2024-07-12 06:02:15 - Z-Score 80% interval: 75.93% 
+2024-07-12 06:02:15 - Z-Score 95% interval: 97.22% 
+2024-07-12 06:02:15 - Forecast table written to: final_forecast_table/forecast_table_20240712_060215.csv 
+2024-07-12 06:02:15 - =======================CCOMPLETE========================== 

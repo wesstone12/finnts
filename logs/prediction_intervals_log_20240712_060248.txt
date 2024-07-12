@@ -1,0 +1,145 @@
+2024-07-12 06:02:48 - =======================START TEST========================== 
+2024-07-12 06:02:48 - Confidence levels: 0.8, 0.95 
+2024-07-12 06:02:48 - Split ratio: 0.8 
+2024-07-12 06:02:48 - Number of back test IDs: 93 
+2024-07-12 06:02:48 - Filtered forecast table rows: 4344 
+2024-07-12 06:02:48 - =====================PREDICTION INTERVAL TESTING===================== 
+2024-07-12 06:02:48 - Processing Combo: M1000 Model ID: arima--local--R1 
+2024-07-12 06:02:48 - Number of rows in calibration set: 435 
+2024-07-12 06:02:48 - Number of rows in test set: 108 
+2024-07-12 06:02:48 - Q_vals for Model_ID: arima--local--R1 and Combo: M1000 
+2024-07-12 06:02:48 - q_val_80: 480.000000000009 
+2024-07-12 06:02:48 - q_val_95: 610.000000000012 
+2024-07-12 06:02:48 - Z-Scores for Model_ID: arima--local--R1 and Combo: M1000 
+2024-07-12 06:02:48 - z_val_80: 348.62655382935 
+2024-07-12 06:02:48 - z_val_95: 533.1783034961 
+2024-07-12 06:02:48 - Saving histogram plot to: plots/histogram_residuals_M1000_arima--local--R1.png 
+2024-07-12 06:02:48 - Processing Combo: M1000 Model ID: arima-boost--local--R1 
+2024-07-12 06:02:48 - Number of rows in calibration set: 435 
+2024-07-12 06:02:48 - Number of rows in test set: 108 
+2024-07-12 06:02:48 - Q_vals for Model_ID: arima-boost--local--R1 and Combo: M1000 
+2024-07-12 06:02:48 - q_val_80: 443.803408766064 
+2024-07-12 06:02:48 - q_val_95: 643.03372022913 
+2024-07-12 06:02:48 - Z-Scores for Model_ID: arima-boost--local--R1 and Combo: M1000 
+2024-07-12 06:02:48 - z_val_80: 343.814767582733 
+2024-07-12 06:02:48 - z_val_95: 525.819311475621 
+2024-07-12 06:02:49 - Saving histogram plot to: plots/histogram_residuals_M1000_arima-boost--local--R1.png 
+2024-07-12 06:02:49 - Processing Combo: M1000 Model ID: arimax--local--R1 
+2024-07-12 06:02:49 - Number of rows in calibration set: 435 
+2024-07-12 06:02:49 - Number of rows in test set: 108 
+2024-07-12 06:02:49 - Q_vals for Model_ID: arimax--local--R1 and Combo: M1000 
+2024-07-12 06:02:49 - q_val_80: 455.439033729518 
+2024-07-12 06:02:49 - q_val_95: 648.693682795099 
+2024-07-12 06:02:49 - Z-Scores for Model_ID: arimax--local--R1 and Combo: M1000 
+2024-07-12 06:02:49 - z_val_80: 350.400470445352 
+2024-07-12 06:02:49 - z_val_95: 535.891274844594 
+2024-07-12 06:02:50 - Saving histogram plot to: plots/histogram_residuals_M1000_arimax--local--R1.png 
+2024-07-12 06:02:50 - Processing Combo: M1000 Model ID: ets--local--R1 
+2024-07-12 06:02:50 - Number of rows in calibration set: 435 
+2024-07-12 06:02:50 - Number of rows in test set: 108 
+2024-07-12 06:02:50 - Q_vals for Model_ID: ets--local--R1 and Combo: M1000 
+2024-07-12 06:02:50 - q_val_80: 470.120743769397 
+2024-07-12 06:02:50 - q_val_95: 610.812002771152 
+2024-07-12 06:02:50 - Z-Scores for Model_ID: ets--local--R1 and Combo: M1000 
+2024-07-12 06:02:50 - z_val_80: 346.347475045855 
+2024-07-12 06:02:50 - z_val_95: 529.692753282065 
+2024-07-12 06:02:51 - Saving histogram plot to: plots/histogram_residuals_M1000_ets--local--R1.png 
+2024-07-12 06:02:51 - Processing Combo: M1000 Model ID: glmnet--local--R1 
+2024-07-12 06:02:51 - Number of rows in calibration set: 435 
+2024-07-12 06:02:51 - Number of rows in test set: 108 
+2024-07-12 06:02:51 - Q_vals for Model_ID: glmnet--local--R1 and Combo: M1000 
+2024-07-12 06:02:51 - q_val_80: 428.820997615461 
+2024-07-12 06:02:51 - q_val_95: 634.297864829495 
+2024-07-12 06:02:51 - Z-Scores for Model_ID: glmnet--local--R1 and Combo: M1000 
+2024-07-12 06:02:51 - z_val_80: 324.580441295165 
+2024-07-12 06:02:51 - z_val_95: 496.402947901904 
+2024-07-12 06:02:51 - Saving histogram plot to: plots/histogram_residuals_M1000_glmnet--local--R1.png 
+2024-07-12 06:02:52 - Processing Combo: M1000 Model ID: meanf--local--R1 
+2024-07-12 06:02:52 - Number of rows in calibration set: 435 
+2024-07-12 06:02:52 - Number of rows in test set: 108 
+2024-07-12 06:02:52 - Q_vals for Model_ID: meanf--local--R1 and Combo: M1000 
+2024-07-12 06:02:52 - q_val_80: 469.93346624583 
+2024-07-12 06:02:52 - q_val_95: 824.055173927699 
+2024-07-12 06:02:52 - Z-Scores for Model_ID: meanf--local--R1 and Combo: M1000 
+2024-07-12 06:02:52 - z_val_80: 392.88386654283 
+2024-07-12 06:02:52 - z_val_95: 600.864022356804 
+2024-07-12 06:02:52 - Saving histogram plot to: plots/histogram_residuals_M1000_meanf--local--R1.png 
+2024-07-12 06:02:52 - Processing Combo: M1000 Model ID: theta--local--R1 
+2024-07-12 06:02:52 - Number of rows in calibration set: 435 
+2024-07-12 06:02:52 - Number of rows in test set: 108 
+2024-07-12 06:02:52 - Q_vals for Model_ID: theta--local--R1 and Combo: M1000 
+2024-07-12 06:02:52 - q_val_80: 488.012837639467 
+2024-07-12 06:02:52 - q_val_95: 636.646374261892 
+2024-07-12 06:02:52 - Z-Scores for Model_ID: theta--local--R1 and Combo: M1000 
+2024-07-12 06:02:52 - z_val_80: 358.146878928649 
+2024-07-12 06:02:52 - z_val_95: 547.738384274284 
+2024-07-12 06:02:53 - Saving histogram plot to: plots/histogram_residuals_M1000_theta--local--R1.png 
+2024-07-12 06:02:53 - Processing Combo: M1000 Model ID: xgboost--local--R1 
+2024-07-12 06:02:53 - Number of rows in calibration set: 435 
+2024-07-12 06:02:53 - Number of rows in test set: 108 
+2024-07-12 06:02:53 - Q_vals for Model_ID: xgboost--local--R1 and Combo: M1000 
+2024-07-12 06:02:53 - q_val_80: 443.331916979859 
+2024-07-12 06:02:53 - q_val_95: 597.167069633761 
+2024-07-12 06:02:53 - Z-Scores for Model_ID: xgboost--local--R1 and Combo: M1000 
+2024-07-12 06:02:53 - z_val_80: 331.848267191627 
+2024-07-12 06:02:53 - z_val_95: 507.518128426786 
+2024-07-12 06:02:54 - Saving histogram plot to: plots/histogram_residuals_M1000_xgboost--local--R1.png 
+2024-07-12 06:02:54 - =======================COVERAGE RESULTS========================== 
+2024-07-12 06:02:54 - ------------------------------------- 
+2024-07-12 06:02:54 - Coverage for M1000_arima--local--R1 
+2024-07-12 06:02:54 - ------------------------------------- 
+2024-07-12 06:02:54 - Conformal 80% interval: 70.37% 
+2024-07-12 06:02:54 - Conformal 95% interval: 84.26% 
+2024-07-12 06:02:54 - Z-Score 80% interval: 61.11% 
+2024-07-12 06:02:54 - Z-Score 95% interval: 75.93% 
+2024-07-12 06:02:54 - ------------------------------------- 
+2024-07-12 06:02:54 - Coverage for M1000_arima-boost--local--R1 
+2024-07-12 06:02:54 - ------------------------------------- 
+2024-07-12 06:02:54 - Conformal 80% interval: 59.26% 
+2024-07-12 06:02:54 - Conformal 95% interval: 77.78% 
+2024-07-12 06:02:54 - Z-Score 80% interval: 44.44% 
+2024-07-12 06:02:54 - Z-Score 95% interval: 66.67% 
+2024-07-12 06:02:54 - ------------------------------------- 
+2024-07-12 06:02:54 - Coverage for M1000_arimax--local--R1 
+2024-07-12 06:02:54 - ------------------------------------- 
+2024-07-12 06:02:54 - Conformal 80% interval: 75.00% 
+2024-07-12 06:02:54 - Conformal 95% interval: 88.89% 
+2024-07-12 06:02:54 - Z-Score 80% interval: 58.33% 
+2024-07-12 06:02:54 - Z-Score 95% interval: 81.48% 
+2024-07-12 06:02:54 - ------------------------------------- 
+2024-07-12 06:02:54 - Coverage for M1000_ets--local--R1 
+2024-07-12 06:02:54 - ------------------------------------- 
+2024-07-12 06:02:54 - Conformal 80% interval: 71.30% 
+2024-07-12 06:02:54 - Conformal 95% interval: 85.19% 
+2024-07-12 06:02:54 - Z-Score 80% interval: 60.19% 
+2024-07-12 06:02:54 - Z-Score 95% interval: 76.85% 
+2024-07-12 06:02:54 - ------------------------------------- 
+2024-07-12 06:02:54 - Coverage for M1000_glmnet--local--R1 
+2024-07-12 06:02:54 - ------------------------------------- 
+2024-07-12 06:02:54 - Conformal 80% interval: 72.22% 
+2024-07-12 06:02:54 - Conformal 95% interval: 87.04% 
+2024-07-12 06:02:54 - Z-Score 80% interval: 60.19% 
+2024-07-12 06:02:54 - Z-Score 95% interval: 77.78% 
+2024-07-12 06:02:54 - ------------------------------------- 
+2024-07-12 06:02:54 - Coverage for M1000_meanf--local--R1 
+2024-07-12 06:02:54 - ------------------------------------- 
+2024-07-12 06:02:54 - Conformal 80% interval: 63.89% 
+2024-07-12 06:02:54 - Conformal 95% interval: 98.15% 
+2024-07-12 06:02:54 - Z-Score 80% interval: 50.93% 
+2024-07-12 06:02:54 - Z-Score 95% interval: 85.19% 
+2024-07-12 06:02:54 - ------------------------------------- 
+2024-07-12 06:02:54 - Coverage for M1000_theta--local--R1 
+2024-07-12 06:02:54 - ------------------------------------- 
+2024-07-12 06:02:54 - Conformal 80% interval: 74.07% 
+2024-07-12 06:02:54 - Conformal 95% interval: 87.96% 
+2024-07-12 06:02:54 - Z-Score 80% interval: 62.04% 
+2024-07-12 06:02:54 - Z-Score 95% interval: 81.48% 
+2024-07-12 06:02:54 - ------------------------------------- 
+2024-07-12 06:02:54 - Coverage for M1000_xgboost--local--R1 
+2024-07-12 06:02:54 - ------------------------------------- 
+2024-07-12 06:02:54 - Conformal 80% interval: 52.78% 
+2024-07-12 06:02:54 - Conformal 95% interval: 62.96% 
+2024-07-12 06:02:54 - Z-Score 80% interval: 45.37% 
+2024-07-12 06:02:54 - Z-Score 95% interval: 60.19% 
+2024-07-12 06:03:00 - Forecast table written to: final_forecast_table/forecast_table_20240712_060259.csv 
+2024-07-12 06:03:00 - =======================CCOMPLETE========================== 

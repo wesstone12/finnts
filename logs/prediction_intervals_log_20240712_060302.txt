@@ -1,0 +1,26 @@
+2024-07-12 06:03:02 - =======================START TEST========================== 
+2024-07-12 06:03:02 - Confidence levels: 0.8, 0.95 
+2024-07-12 06:03:02 - Split ratio: 0.8 
+2024-07-12 06:03:02 - Number of back test IDs: 93 
+2024-07-12 06:03:02 - Filtered forecast table rows: 543 
+2024-07-12 06:03:02 - =====================PREDICTION INTERVAL TESTING===================== 
+2024-07-12 06:03:02 - Processing Combo: M750 Model ID: arimax--local--R1_meanf--local--R1 
+2024-07-12 06:03:02 - Number of rows in calibration set: 435 
+2024-07-12 06:03:02 - Number of rows in test set: 108 
+2024-07-12 06:03:02 - Q_vals for Model_ID: arimax--local--R1_meanf--local--R1 and Combo: M750 
+2024-07-12 06:03:02 - q_val_80: 749.583521249146 
+2024-07-12 06:03:02 - q_val_95: 1242.69033859804 
+2024-07-12 06:03:02 - Z-Scores for Model_ID: arimax--local--R1_meanf--local--R1 and Combo: M750 
+2024-07-12 06:03:02 - z_val_80: 621.601494051953 
+2024-07-12 06:03:02 - z_val_95: 950.657448231814 
+2024-07-12 06:03:03 - Saving histogram plot to: plots/histogram_residuals_M750_arimax--local--R1_meanf--local--R1.png 
+2024-07-12 06:03:03 - =======================COVERAGE RESULTS========================== 
+2024-07-12 06:03:03 - ------------------------------------- 
+2024-07-12 06:03:03 - Coverage for M750_arimax--local--R1_meanf--local--R1 
+2024-07-12 06:03:03 - ------------------------------------- 
+2024-07-12 06:03:03 - Conformal 80% interval: 89.81% 
+2024-07-12 06:03:03 - Conformal 95% interval: 98.15% 
+2024-07-12 06:03:03 - Z-Score 80% interval: 84.26% 
+2024-07-12 06:03:03 - Z-Score 95% interval: 93.52% 
+2024-07-12 06:03:04 - Forecast table written to: final_forecast_table/forecast_table_20240712_060304.csv 
+2024-07-12 06:03:04 - =======================CCOMPLETE========================== 

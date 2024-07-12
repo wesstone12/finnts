@@ -1,0 +1,26 @@
+2024-07-12 06:02:30 - =======================START TEST========================== 
+2024-07-12 06:02:30 - Confidence levels: 0.8, 0.95 
+2024-07-12 06:02:30 - Split ratio: 0.8 
+2024-07-12 06:02:30 - Number of back test IDs: 93 
+2024-07-12 06:02:30 - Filtered forecast table rows: 543 
+2024-07-12 06:02:30 - =====================PREDICTION INTERVAL TESTING===================== 
+2024-07-12 06:02:30 - Processing Combo: M1 Model ID: ets--local--R1_glmnet--local--R1 
+2024-07-12 06:02:30 - Number of rows in calibration set: 435 
+2024-07-12 06:02:30 - Number of rows in test set: 108 
+2024-07-12 06:02:30 - Q_vals for Model_ID: ets--local--R1_glmnet--local--R1 and Combo: M1 
+2024-07-12 06:02:30 - q_val_80: 1655.14808690539 
+2024-07-12 06:02:30 - q_val_95: 2477.78601186982 
+2024-07-12 06:02:30 - Z-Scores for Model_ID: ets--local--R1_glmnet--local--R1 and Combo: M1 
+2024-07-12 06:02:30 - z_val_80: 1296.23420567806 
+2024-07-12 06:02:30 - z_val_95: 1982.41914485763 
+2024-07-12 06:02:31 - Saving histogram plot to: plots/histogram_residuals_M1_ets--local--R1_glmnet--local--R1.png 
+2024-07-12 06:02:31 - =======================COVERAGE RESULTS========================== 
+2024-07-12 06:02:31 - ------------------------------------- 
+2024-07-12 06:02:31 - Coverage for M1_ets--local--R1_glmnet--local--R1 
+2024-07-12 06:02:31 - ------------------------------------- 
+2024-07-12 06:02:31 - Conformal 80% interval: 96.30% 
+2024-07-12 06:02:31 - Conformal 95% interval: 100.00% 
+2024-07-12 06:02:31 - Z-Score 80% interval: 86.11% 
+2024-07-12 06:02:31 - Z-Score 95% interval: 99.07% 
+2024-07-12 06:02:32 - Forecast table written to: final_forecast_table/forecast_table_20240712_060232.csv 
+2024-07-12 06:02:32 - =======================CCOMPLETE========================== 
