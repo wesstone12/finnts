@@ -34,7 +34,7 @@
  
 
   prep_models(run_info,
-    models_to_run = c("meanf", "arima", "xgboost","arima-boost", "arimax", "theta","ets", "glmnet"),
+    models_to_run = c("meanf"),
   )
 
 

@@ -1,0 +1,8 @@
+2024-07-18 09:49:20 - =======================START TEST========================== 
+2024-07-18 09:49:20 - Confidence levels: 0.8, 0.95 
+2024-07-18 09:49:20 - Number of conformal windows: 100 
+2024-07-18 09:49:20 - Number of back test IDs: 93 
+2024-07-18 09:49:20 - Filtered forecast table rows: 543 
+2024-07-18 09:49:20 - =====================PREDICTION INTERVAL TESTING===================== 
+2024-07-18 09:49:20 - Processing Combo: M750 Model ID: meanf--local--R1 
+2024-07-18 09:49:20 - Error occurred: 'data' must be of a vector type, was 'NULL' 

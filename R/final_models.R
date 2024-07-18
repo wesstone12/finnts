@@ -631,7 +631,7 @@ final_models <- function(run_info,
 #'
 #' @return data frame with prediction intervals
 #' @noRd
-create_prediction_intervals <- function(fcst_tbl, train_test_split, conf_levels = c(0.80, 0.95), split_ratio = 0.8) {
+create_prediction_intervals <- function(fcst_tbl, train_test_split, conf_levels = c(0.80, 0.95), cs_n_windows = 100) {
   # Create a log file with timestamp
   log_file <- paste0("logs/prediction_intervals_log_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".txt")
   log_conn <- file(log_file, open = "wt")
@@ -642,12 +642,11 @@ create_prediction_intervals <- function(fcst_tbl, train_test_split, conf_levels 
   }
   
   # Redirect output, warnings, and messages to the log file
-
   
   tryCatch({
     log_message("=======================START TEST==========================")
     log_message("Confidence levels:", paste(conf_levels, collapse = ", "))
-    log_message("Split ratio:", split_ratio)
+    log_message("Number of conformal windows:", cs_n_windows)
     
     back_test_ids <- train_test_split %>%
       dplyr::filter(Run_Type == "Back_Test") %>%
@@ -661,9 +660,45 @@ create_prediction_intervals <- function(fcst_tbl, train_test_split, conf_levels 
     
     log_message("Filtered forecast table rows:", nrow(fcst_tbl_filtered))
 
-    quantiles_list <- list()
+    # Function to calculate conformal prediction intervals
+    add_conformal_distribution_intervals <- function(fcst_df, cs_df, model_names, level, cs_n_windows, n_series, horizon) {
+      # Calculate the quantiles for each confidence level
+      # Math: For a confidence level α, we use quantiles α/2 and 1-α/2
+      alphas <- 100 - level
+      cuts <- c(rev(alphas) / 200, 1 - alphas / 200)
+      
+      for (model in model_names) {
+        # Reshape conformal scores into a 3D array: (windows, series, horizon)
+        scores <- as.matrix(cs_df[[model]])
+        scores <- array(scores, dim = c(cs_n_windows, n_series, horizon))
+        
+        # Get mean forecast and reshape into a 3D array
+        mean <- array(fcst_df[[model]], dim = c(1, n_series, horizon))
+        
+        # Create forecast paths by adding and subtracting scores from mean
+        # Math: Lower path = mean - scores, Upper path = mean + scores
+        scores <- abind::abind(mean - scores, mean + scores, along = 1)
+        
+        # Calculate quantiles for each series and horizon
+        # Math: These quantiles form the boundaries of our prediction intervals
+        quantiles <- apply(scores, c(2, 3), quantile, probs = cuts)
+        quantiles <- matrix(quantiles, ncol = length(cuts) * horizon, byrow = TRUE)
+        
+        # Assign quantiles to appropriate columns in the forecast dataframe
+        for (h in 1:horizon) {
+          lo_cols <- paste0(model, "-lo-", rev(level), "-h", h)
+          hi_cols <- paste0(model, "-hi-", level, "-h", h)
+          out_cols <- c(lo_cols, hi_cols)
+          start_col <- (h-1) * length(cuts) + 1
+          end_col <- h * length(cuts)
+          fcst_df[out_cols] <- quantiles[, start_col:end_col]
+        }
+      }
+      
+      return(fcst_df)
+    }
+
     coverage_results <- list()
-    z_score_results <- list()
 
     log_message("=====================PREDICTION INTERVAL TESTING=====================")
 
@@ -672,77 +707,84 @@ create_prediction_intervals <- function(fcst_tbl, train_test_split, conf_levels 
         log_message("Processing Combo:", combo, "Model ID:", model_id)
         
         combo_model_data <- fcst_tbl_filtered %>%
-          dplyr::filter(Combo == combo, Model_ID == model_id)
+          dplyr::filter(Combo == combo, Model_ID == model_id) %>%
+          dplyr::arrange(Date)
 
-        n <- nrow(combo_model_data)
-        split_index <- ceiling(split_ratio * n)
-        calibration_set <- combo_model_data[1:split_index, ]
-        test_set <- combo_model_data[(split_index + 1):n, ]
-
-        log_message("Number of rows in calibration set:", nrow(calibration_set))
-        log_message("Number of rows in test set:", nrow(test_set))
-
-        residuals <- calibration_set$Target - calibration_set$Forecast
-        q_vals <- sapply(conf_levels, function(cl) {
-          alpha <- 1 - cl
-          two_sided_alpha <- alpha / 2
-          quantile(abs(residuals), probs = 1 - two_sided_alpha, na.rm = TRUE)
-        })
-
-        log_message("Q_vals for Model_ID:", model_id, "and Combo:", combo)
-        log_message("q_val_80:", q_vals[1])
-        log_message("q_val_95:", q_vals[2])
-
-        z_scores <- c(qnorm((1 + conf_levels[1]) / 2), qnorm((1 + conf_levels[2]) / 2))
-        residual_std_dev <- sd(calibration_set$Target - calibration_set$Forecast, na.rm = TRUE)
-        z_vals <- z_scores * residual_std_dev
-        log_message("Z-Scores for Model_ID:", model_id, "and Combo:", combo)
-        log_message("z_val_80:", z_vals[1])
-        log_message("z_val_95:", z_vals[2])
-
+        # Determine the maximum horizon
+        max_horizon <- max(combo_model_data$Horizon, na.rm = TRUE)
+        
+        # Initialize columns for intervals
+        for (level in conf_levels) {
+          for (h in 1:max_horizon) {
+            combo_model_data[[paste0("lo_", level*100, "_h", h)]] <- NA
+            combo_model_data[[paste0("hi_", level*100, "_h", h)]] <- NA
+          }
+        }
+        
+        # Rolling window approach
+        for (i in (max_horizon + 1):nrow(combo_model_data)) {
+          calibration_data <- combo_model_data[1:(i-1), ]
+          
+          # Calculate residuals for each horizon
+          # Math: residual = actual - forecast
+          residuals <- list()
+          for (h in 1:max_horizon) {
+            residuals[[h]] <- calibration_data$Target[calibration_data$Horizon == h] - 
+                              calibration_data$Forecast[calibration_data$Horizon == h]
+          }
+          
+          # Generate conformal scores by resampling residuals
+          # This creates a distribution of possible errors
+          cs_df <- data.frame(matrix(
+            sapply(residuals, function(r) replicate(cs_n_windows, sample(r, replace = TRUE))),
+            ncol = cs_n_windows
+          ))
+          names(cs_df) <- model_id
+          
+          # Calculate intervals using the distribution-based method
+          new_intervals <- add_conformal_distribution_intervals(
+            combo_model_data[i, , drop = FALSE], cs_df, model_id, conf_levels * 100, 
+            cs_n_windows, 1, max_horizon
+          )
+          
+          # Update the main dataframe with new intervals
+          for (level in conf_levels) {
+            for (h in 1:max_horizon) {
+              lo_col <- paste0("lo_", level*100, "_h", h)
+              hi_col <- paste0("hi_", level*100, "_h", h)
+              combo_model_data[i, lo_col] <- new_intervals[[lo_col]]
+              combo_model_data[i, hi_col] <- new_intervals[[hi_col]]
+            }
+          }
+        }
+        
+        # Calculate coverage
+        # Math: coverage = (number of targets within interval) / (total number of targets)
+        for (level in conf_levels) {
+          for (h in 1:max_horizon) {
+            lo_col <- paste0("lo_", level*100, "_h", h)
+            hi_col <- paste0("hi_", level*100, "_h", h)
+            covered_col <- paste0("covered_", level*100, "_h", h)
+            combo_model_data <- combo_model_data %>%
+              dplyr::mutate(
+                !!covered_col := ifelse(Horizon == h, 
+                                        Target >= !!sym(lo_col) & Target <= !!sym(hi_col),
+                                        NA)
+              )
+          }
+        }
+        
+        # Store coverage results
         key <- paste(combo, model_id, sep = "_")
-        quantiles_list[[key]] <- q_vals
-        z_score_results[[key]] <- z_vals
+        coverage_results[[key]] <- list()
+        for (level in conf_levels) {
+          for (h in 1:max_horizon) {
+            coverage_col <- paste0("covered_", level*100, "_h", h)
+            coverage_results[[key]][[paste0("conf_", level*100, "_h", h)]] <- 
+              mean(combo_model_data[[coverage_col]], na.rm = TRUE)
+          }
+        }
 
-        test_set <- test_set %>%
-          dplyr::mutate(
-            lo_80_conf = Forecast - q_vals[1],
-            hi_80_conf = Forecast + q_vals[1],
-            lo_95_conf = Forecast - q_vals[2],
-            hi_95_conf = Forecast + q_vals[2],
-            lo_80_z = Forecast - z_vals[1],
-            hi_80_z = Forecast + z_vals[1],
-            lo_95_z = Forecast - z_vals[2],
-            hi_95_z = Forecast + z_vals[2],
-            covered_80_conf = Target >= lo_80_conf & Target <= hi_80_conf,
-            covered_95_conf = Target >= lo_95_conf & Target <= hi_95_conf,
-            covered_80_z = Target >= lo_80_z & Target <= hi_80_z,
-            covered_95_z = Target >= lo_95_z & Target <= hi_95_z
-          )
-
-        calibration_set <- calibration_set %>%
-          dplyr::mutate(
-            lo_80_conf = Forecast - q_vals[1],
-            hi_80_conf = Forecast + q_vals[1],
-            lo_95_conf = Forecast - q_vals[2],
-            hi_95_conf = Forecast + q_vals[2],
-            lo_80_z = Forecast - z_vals[1],
-            hi_80_z = Forecast + z_vals[1],
-            lo_95_z = Forecast - z_vals[2],
-            hi_95_z = Forecast + z_vals[2]
-          )
-
-        coverage_results[[key]] <- list(
-          conf_80 = mean(test_set$covered_80_conf, na.rm = TRUE),
-          conf_95 = mean(test_set$covered_95_conf, na.rm = TRUE),
-          z_80 = mean(test_set$covered_80_z, na.rm = TRUE),
-          z_95 = mean(test_set$covered_95_z, na.rm = TRUE)
-        )
-
-        combined_data <- dplyr::bind_rows(
-          calibration_set %>% dplyr::mutate(Set = "Calibration"),
-          test_set %>% dplyr::mutate(Set = "Test")
-        ) %>% dplyr::arrange(Date)
 
         p <- ggplot2::ggplot(combined_data, ggplot2::aes(x = Date)) +
           ggplot2::geom_line(ggplot2::aes(y = Target, color = paste(Set, "Actual")), size = 1) +
@@ -834,38 +876,20 @@ create_prediction_intervals <- function(fcst_tbl, train_test_split, conf_levels 
       log_message("-------------------------------------")
       log_message("Coverage for", key)
       log_message("-------------------------------------")
-      log_message(sprintf("Conformal 80%% interval: %.2f%%", coverage_results[[key]]$conf_80 * 100))
-      log_message(sprintf("Conformal 95%% interval: %.2f%%", coverage_results[[key]]$conf_95 * 100))
-      log_message(sprintf("Z-Score 80%% interval: %.2f%%", coverage_results[[key]]$z_80 * 100))
-      log_message(sprintf("Z-Score 95%% interval: %.2f%%", coverage_results[[key]]$z_95 * 100))
-      
+      for (level in conf_levels) {
+        for (h in 1:max_horizon) {
+          coverage_key <- paste0("conf_", level*100, "_h", h)
+          log_message(sprintf("%d%% interval, horizon %d: %.2f%%", 
+                              level*100, h, coverage_results[[key]][[coverage_key]] * 100))
+        }
+      }
     }
 
+    # Update the full forecast table with prediction intervals
     fcst_tbl <- fcst_tbl %>%
-      dplyr::rowwise() %>%
-      dplyr::mutate(
-        key = paste(Combo, Model_ID, sep = "_"),
-        lo_80 = Forecast - ifelse(coverage_results[[key]]$z_80 > coverage_results[[key]]$conf_80,
-          z_score_results[[key]][1], quantiles_list[[key]][1]
-        ),
-        hi_80 = Forecast + ifelse(coverage_results[[key]]$z_80 > coverage_results[[key]]$conf_80,
-          z_score_results[[key]][1], quantiles_list[[key]][1]
-        ),lo_95 = Forecast - ifelse(coverage_results[[key]]$z_95 > coverage_results[[key]]$conf_95,
-          z_score_results[[key]][2], quantiles_list[[key]][2]
-        ),
-        hi_95 = Forecast + ifelse(coverage_results[[key]]$z_95 > coverage_results[[key]]$conf_95,
-          z_score_results[[key]][2], quantiles_list[[key]][2]
-        ),
-        method_80 = ifelse(coverage_results[[key]]$z_80 > coverage_results[[key]]$conf_80, "Z-Score", "Conformal"),
-        method_95 = ifelse(coverage_results[[key]]$z_95 > coverage_results[[key]]$conf_95, "Z-Score", "Conformal"),
-        coverage_80 = ifelse(coverage_results[[key]]$z_80 > coverage_results[[key]]$conf_80,
-          coverage_results[[key]]$z_80, coverage_results[[key]]$conf_80
-        ),
-        coverage_95 = ifelse(coverage_results[[key]]$z_95 > coverage_results[[key]]$conf_95,
-          coverage_results[[key]]$z_95, coverage_results[[key]]$conf_95
-        ),
-      ) %>%
-      dplyr::select(-key)
+      dplyr::left_join(combo_model_data, by = c("Date", "Combo", "Model_ID", "Train_Test_ID", "Target", "Forecast", "Horizon"))
+
+
 
    
     grouped_fcst <- fcst_tbl %>%
@@ -915,13 +939,11 @@ create_prediction_intervals <- function(fcst_tbl, train_test_split, conf_levels 
       )
     }
 
-  
-    filename <- paste0("final_forecast_table/forecast_table_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".csv")
-
+  filename <- paste0("final_forecast_table/forecast_table_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".csv")
     write.csv(fcst_tbl, file = filename, row.names = FALSE)
     log_message("Forecast table written to:", filename)
 
-    log_message("=======================CCOMPLETE==========================")
+    log_message("=======================COMPLETE==========================")
   }, error = function(e) {
     log_message("Error occurred:", conditionMessage(e))
   }, finally = {
@@ -929,11 +951,9 @@ create_prediction_intervals <- function(fcst_tbl, train_test_split, conf_levels 
     sink(type = "message")
     close(log_conn)
   })
-  #save fcst_tbl to file in 'final forecast table' folder
- 
-
 
   return(fcst_tbl)
+
 }
 #' Convert weekly forecast down to daily
 #'
