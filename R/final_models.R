@@ -628,43 +628,270 @@ final_models <- function(run_info,
 #'
 #' @return data frame with prediction intervals
 #' @noRd
-create_prediction_intervals <- function(fcst_tbl,
-                                        train_test_split) {
-  back_test_id <- train_test_split %>%
-    dplyr::filter(Run_Type == "Back_Test") %>%
-    dplyr::select(Train_Test_ID) %>%
-    dplyr::pull(Train_Test_ID)
+# Load required libraries
 
-  prediction_interval_tbl <- fcst_tbl %>%
-    dplyr::filter(Train_Test_ID %in% back_test_id) %>%
-    dplyr::mutate(Residual = Target - Forecast) %>%
-    dplyr::group_by(Combo, Model_ID) %>%
-    dplyr::summarise(Residual_Std_Dev = sd(Residual, na.rm = TRUE)) %>%
-    dplyr::ungroup()
 
-  final_tbl <- fcst_tbl %>%
-    dplyr::left_join(prediction_interval_tbl,
-      by = c("Model_ID", "Combo")
-    ) %>%
-    dplyr::mutate(
-      lo_80 = ifelse(Train_Test_ID == 1, Forecast - (1.28 * Residual_Std_Dev), NA),
-      lo_95 = ifelse(Train_Test_ID == 1, Forecast - (1.96 * Residual_Std_Dev), NA),
-      hi_80 = ifelse(Train_Test_ID == 1, Forecast + (1.28 * Residual_Std_Dev), NA),
-      hi_95 = ifelse(Train_Test_ID == 1, Forecast + (1.96 * Residual_Std_Dev), NA)
-    ) %>%
-    dplyr::select(-Residual_Std_Dev)
 
-  return(final_tbl)
+create_prediction_intervals <- function(fcst_tbl, train_test_split, conf_levels = c(0.80, 0.95), split_ratio = 0.8) {
+  log_file <- paste0("logs/prediction_intervals_log_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".txt")
+  log_conn <- file(log_file, open = "wt")
+  
+  log_message <- function(...) {
+    message <- paste0(format(Sys.time(), "%Y-%m-%d %H:%M:%S"), " - ", paste(...))
+    cat(message, "\n", file = log_conn, append = TRUE)
+  }
+  
+  tryCatch({
+    log_message("=======================START TEST==========================")
+    log_message("Confidence levels:", paste(conf_levels, collapse = ", "))
+    log_message("Split ratio:", split_ratio)
+    
+    back_test_ids <- train_test_split %>%
+      dplyr::filter(Run_Type == "Back_Test") %>%
+      dplyr::pull(Train_Test_ID)
+    
+    fcst_tbl_filtered <- fcst_tbl %>%
+      dplyr::filter(Train_Test_ID %in% back_test_ids) %>%
+      dplyr::arrange(Date, Horizon)
+    
+    quantiles_list <- list()
+    coverage_results <- list()
+    z_score_results <- list()
+
+    for (combo in unique(fcst_tbl_filtered$Combo)) {
+      for (model_id in unique(fcst_tbl_filtered$Model_ID[fcst_tbl_filtered$Combo == combo])) {
+        log_message("Processing Combo:", combo, "Model ID:", model_id)
+        
+        combo_model_data <- fcst_tbl_filtered %>%
+          dplyr::filter(Combo == combo, Model_ID == model_id)
+
+        n <- nrow(combo_model_data)
+        split_index <- ceiling(split_ratio * n)
+        calibration_set <- combo_model_data[1:split_index, ]
+        test_set <- combo_model_data[(split_index + 1):n, ]
+
+        # Calculate overall residuals
+        residuals <- calibration_set$Target - calibration_set$Forecast
+
+        # Calculate horizon-specific residuals
+        horizon_residuals <- calibration_set %>%
+          dplyr::group_by(Horizon) %>%
+          dplyr::summarise(residuals = list(Target - Forecast))
+
+        # Calculate overall and horizon-specific quantiles and z-scores
+        overall_q_vals <- sapply(conf_levels, function(cl) {
+          alpha <- 1 - cl
+          two_sided_alpha <- alpha / 2
+          quantile(abs(residuals), probs = 1 - two_sided_alpha, na.rm = TRUE)
+        })
+
+        overall_z_scores <- c(qnorm((1 + conf_levels[1]) / 2), qnorm((1 + conf_levels[2]) / 2))
+        overall_residual_std_dev <- sd(residuals, na.rm = TRUE)
+        overall_z_vals <- overall_z_scores * overall_residual_std_dev
+
+        for (h in unique(combo_model_data$Horizon)) {
+          h_residuals <- horizon_residuals$residuals[[which(horizon_residuals$Horizon == h)]]
+          
+          h_q_vals <- sapply(conf_levels, function(cl) {
+            alpha <- 1 - cl
+            two_sided_alpha <- alpha / 2
+            quantile(abs(h_residuals), probs = 1 - two_sided_alpha, na.rm = TRUE)
+          })
+
+          h_residual_std_dev <- sd(h_residuals, na.rm = TRUE)
+          h_z_vals <- overall_z_scores * h_residual_std_dev
+
+          key <- paste(combo, model_id, h, sep = "_")
+          quantiles_list[[key]] <- h_q_vals
+          z_score_results[[key]] <- h_z_vals
+        }
+
+        # Apply prediction intervals to test set
+        test_set <- test_set %>%
+          dplyr::rowwise() %>%
+          dplyr::mutate(
+            key = paste(combo, model_id, Horizon, sep = "_"),
+            lo_80_conf = Forecast - quantiles_list[[key]][1],
+            hi_80_conf = Forecast + quantiles_list[[key]][1],
+            lo_95_conf = Forecast - quantiles_list[[key]][2],
+            hi_95_conf = Forecast + quantiles_list[[key]][2],
+            lo_80_z = Forecast - z_score_results[[key]][1],
+            hi_80_z = Forecast + z_score_results[[key]][1],
+            lo_95_z = Forecast - z_score_results[[key]][2],
+            hi_95_z = Forecast + z_score_results[[key]][2],
+            covered_80_conf = Target >= lo_80_conf & Target <= hi_80_conf,
+            covered_95_conf = Target >= lo_95_conf & Target <= hi_95_conf,
+            covered_80_z = Target >= lo_80_z & Target <= hi_80_z,
+            covered_95_z = Target >= lo_95_z & Target <= hi_95_z
+          ) %>%
+          dplyr::ungroup()
+
+        # Calculate coverage
+        coverage_results[[paste(combo, model_id, sep = "_")]] <- list(
+          conf_80 = mean(test_set$covered_80_conf, na.rm = TRUE),
+          conf_95 = mean(test_set$covered_95_conf, na.rm = TRUE),
+          z_80 = mean(test_set$covered_80_z, na.rm = TRUE),
+          z_95 = mean(test_set$covered_95_z, na.rm = TRUE)
+        )
+
+        # Plotting and logging (similar to original implementation)
+        # ...
+                combined_data <- dplyr::bind_rows(
+          calibration_set %>% dplyr::mutate(Set = "Calibration"),
+          test_set %>% dplyr::mutate(Set = "Test")
+        ) %>% dplyr::arrange(Date)
+
+        p <- ggplot2::ggplot(combined_data, ggplot2::aes(x = Date)) +
+          ggplot2::geom_line(ggplot2::aes(y = Target, color = paste(Set, "Actual")), size = 1) +
+          ggplot2::geom_line(ggplot2::aes(y = Forecast, color = paste(Set, "Forecast")), 
+                            linetype = ifelse(combined_data$Set == "Test", "dashed", "solid")) +
+          ggplot2::geom_ribbon(ggplot2::aes(ymin = lo_80_conf, ymax = hi_80_conf, 
+                                            fill = "80% Confidence: Conformal Split"), alpha = 0.3) +
+          ggplot2::geom_ribbon(ggplot2::aes(ymin = lo_95_conf, ymax = hi_95_conf, 
+                                            fill = "95% Confidence: Conformal Split"), alpha = 0.2) +
+          ggplot2::geom_ribbon(ggplot2::aes(ymin = lo_80_z, ymax = hi_80_z, 
+                                            fill = "80% Confidence: Z-Score"), alpha = 0.3) +
+          ggplot2::geom_ribbon(ggplot2::aes(ymin = lo_95_z, ymax = hi_95_z, 
+                                            fill = "95% Confidence: Z-Score"), alpha = 0.2) +
+          ggplot2::scale_color_manual(values = c(
+            "Calibration Actual" = "blue", "Calibration Forecast" = "red",
+            "Test Actual" = "darkblue", "Test Forecast" = "darkred"
+          )) +
+          ggplot2::scale_fill_manual(values = c(
+            "80% Confidence: Conformal Split" = "#ffa601",
+            "95% Confidence: Conformal Split" = "#ffbb00",
+            "80% Confidence: Z-Score" = "#af4ced",
+            "95% Confidence: Z-Score" = "#cc91f1"
+          )) +
+          ggplot2::labs(
+            title = paste("Prediction Intervals for Model ID:", model_id, "and Combo:", combo),
+            subtitle = paste(
+              "Conformal Coverage: 80%:", format(coverage_results[[key]]$conf_80 * 100, nsmall = 2),
+              "%, 95%:", format(coverage_results[[key]]$conf_95 * 100, nsmall = 2), "%\n",
+              "Z-Score Coverage: 80%:", format(coverage_results[[key]]$z_80 * 100, nsmall = 2),
+              "%, 95%:", format(coverage_results[[key]]$z_95 * 100, nsmall = 2), "%"
+            ),
+            x = "Date", y = "Values"
+          ) +
+          ggplot2::theme_minimal() +
+          ggplot2::theme(
+            panel.background = ggplot2::element_rect(fill = "white"),
+            legend.background = ggplot2::element_rect(fill = "white"),
+            legend.key = ggplot2::element_rect(fill = "white", colour = "white")
+          ) +
+          ggplot2::guides(
+            fill = ggplot2::guide_legend(title = "Prediction Intervals"),
+            color = ggplot2::guide_legend(title = "Series")
+          )
+
+        ggplot2::ggsave(paste0("plots/prediction_intervals_", key, ".png"), plot = p, width = 10, height = 6, dpi = 300)
+      }
+    }
+
+    log_message("=======================COVERAGE RESULTS==========================")
+    for (key in names(coverage_results)) {
+      log_message("-------------------------------------")
+      log_message("Coverage for", key)
+      log_message("-------------------------------------")
+      log_message(sprintf("Conformal 80%% interval: %.2f%%", coverage_results[[key]]$conf_80 * 100))
+      log_message(sprintf("Conformal 95%% interval: %.2f%%", coverage_results[[key]]$conf_95 * 100))
+      log_message(sprintf("Z-Score 80%% interval: %.2f%%", coverage_results[[key]]$z_80 * 100))
+      log_message(sprintf("Z-Score 95%% interval: %.2f%%", coverage_results[[key]]$z_95 * 100))
+    }
+
+    # Apply prediction intervals to the full forecast table
+    fcst_tbl <- fcst_tbl %>%
+      dplyr::rowwise() %>%
+      dplyr::mutate(
+        key = paste(Combo, Model_ID, Horizon, sep = "_"),
+        max_horizon = max(Horizon),
+        adjusted_key = ifelse(Horizon > max_horizon, 
+                              paste(Combo, Model_ID, max_horizon, sep = "_"), 
+                              key),
+        lo_80 = Forecast - quantiles_list[[adjusted_key]][1],
+        hi_80 = Forecast + quantiles_list[[adjusted_key]][1],
+        lo_95 = Forecast - quantiles_list[[adjusted_key]][2],
+        hi_95 = Forecast + quantiles_list[[adjusted_key]][2],
+        method_80 = ifelse(coverage_results[[paste(Combo, Model_ID, sep = "_")]]$z_80 > 
+                           coverage_results[[paste(Combo, Model_ID, sep = "_")]]$conf_80, 
+                           "Z-Score", "Conformal"),
+        method_95 = ifelse(coverage_results[[paste(Combo, Model_ID, sep = "_")]]$z_95 > 
+                           coverage_results[[paste(Combo, Model_ID, sep = "_")]]$conf_95, 
+                           "Z-Score", "Conformal"),
+        coverage_80 = ifelse(method_80 == "Z-Score",
+                             coverage_results[[paste(Combo, Model_ID, sep = "_")]]$z_80,
+                             coverage_results[[paste(Combo, Model_ID, sep = "_")]]$conf_80),
+        coverage_95 = ifelse(method_95 == "Z-Score",
+                             coverage_results[[paste(Combo, Model_ID, sep = "_")]]$z_95,
+                             coverage_results[[paste(Combo, Model_ID, sep = "_")]]$conf_95)
+      ) %>%
+      dplyr::select(-key, -max_horizon, -adjusted_key)
+
+    # Final plotting and saving (similar to the original implementation)
+    # ...
+    grouped_fcst <- fcst_tbl %>%
+      dplyr::group_by(Model_ID, Combo)
+
+    for (group in dplyr::group_split(grouped_fcst)) {
+      current_model <- unique(group$Model_ID)
+      current_combo <- unique(group$Combo)
+      
+      
+      
+      f_plot <- ggplot2::ggplot(group, ggplot2::aes(x = Date)) +
+        ggplot2::geom_line(ggplot2::aes(y = Forecast, color = "Forecast"), linetype = "dashed", size = 1) +
+        ggplot2::geom_line(ggplot2::aes(y = Target, color = "Actual"), size = 1) +
+        ggplot2::geom_ribbon(ggplot2::aes(ymin = lo_80, ymax = hi_80, fill = "80% Prediction Interval"), alpha = 0.3) +
+        ggplot2::geom_ribbon(ggplot2::aes(ymin = lo_95, ymax = hi_95, fill = "95% Prediction Interval"), alpha = 0.2) +
+        ggplot2::scale_color_manual(values = c("Forecast" = "red", "Actual" = "blue")) +
+        ggplot2::scale_fill_manual(values = c(
+          "80% Prediction Interval" = "orange",
+          "95% Prediction Interval" = "#ffbb00"
+        )) +
+        ggplot2::labs(
+          title = paste("Forecast Visualization with Conformal Prediction Intervals for Model", current_model, "and Combo", current_combo),
+          subtitle = paste(
+            "80% PI Method:", unique(group$method_80), "- Coverage:", format(unique(group$coverage_80) * 100, digits = 2), "%\n",
+            "95% PI Method:", unique(group$method_95), "- Coverage:", format(unique(group$coverage_95) * 100, digits = 2), "%"
+          ),
+          x = "Date", y = "Forecast Values"
+        ) +
+        ggplot2::theme_minimal() +
+        ggplot2::theme(
+          panel.background = ggplot2::element_rect(fill = "white"),
+          legend.background = ggplot2::element_rect(fill = "white"),
+          legend.key = ggplot2::element_rect(fill = "white", colour = "white")
+        ) +
+        ggplot2::guides(
+          fill = ggplot2::guide_legend(title = "Confidence Intervals"),
+          color = ggplot2::guide_legend(title = "Series")
+        )
+
+      print(f_plot)
+
+
+      ggplot2::ggsave(
+        paste0("plots/final_forecast_plot_", current_model, "_", current_combo, ".png"),
+        plot = f_plot, width = 10, height = 6, dpi = 300
+      )
+    }
+
+    filename <- paste0("final_forecast_table/forecast_table_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".csv")
+    write.csv(fcst_tbl, file = filename, row.names = FALSE)
+    log_message("Forecast table written to:", filename)
+
+    log_message("=======================COMPLETE==========================")
+  }, error = function(e) {
+    log_message("Error occurred:", conditionMessage(e))
+    print(e)
+  }, finally = {
+    close(log_conn)
+  })
+
+  return(fcst_tbl)
 }
 
-#' Convert weekly forecast down to daily
-#'
-#' @param fcst_tbl forecast table to use to create prediction intervals
-#' @param date_type date type
-#' @param weekly_to_daily if weekly forecast should be converted to daily
-#'
-#' @return data frame with final forecasts
-#' @noRd
+
 convert_weekly_to_daily <- function(fcst_tbl,
                                     date_type,
                                     weekly_to_daily) {
