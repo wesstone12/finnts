@@ -17,7 +17,8 @@
 
   data_tbl <- timetk::m4_monthly %>%
     dplyr::rename(Date = date) %>%
-    dplyr::mutate(id = as.character(id)) 
+    dplyr::mutate(id = as.character(id)) %>% dplyr::filter(
+      id == "M2")
 
 
   run_info <- set_run_info()
